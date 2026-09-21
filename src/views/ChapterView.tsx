@@ -5,11 +5,14 @@ import {
   Search,
   Filter,
   Info,
-  PlayCircle
+  PlayCircle,
+  Layers
 } from 'lucide-react';
 import { Chapter, DMLTPaper, Topic } from '../types';
 import { TopicCard } from '../components/TopicCard';
 import { TopicUnlockModal } from '../components/TopicUnlockModal';
+import { QuickNotesSection } from '../components/QuickNotesSection';
+import { ChapterTerminologySection } from '../components/ChapterTerminologySection';
 import {
   calculateChapterProgress,
   getTopicProgress
@@ -20,19 +23,30 @@ interface ChapterViewProps {
   paper: DMLTPaper;
   onBackToPaper: () => void;
   onStartTest: (topic: Topic) => void;
+  onOpenFlashcards?: (chapterId: string) => void;
 }
 
 export const ChapterView: React.FC<ChapterViewProps> = ({
   chapter,
   paper,
   onBackToPaper,
-  onStartTest
+  onStartTest,
+  onOpenFlashcards
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<'all' | 'completed' | 'failed' | 'pending'>('all');
   const [unlockTargetTopic, setUnlockTargetTopic] = useState<Topic | null>(null);
+  const [notesActiveTopicId, setNotesActiveTopicId] = useState<string | null>(chapter.topics[0]?.id || null);
 
   const stats = calculateChapterProgress(paper.id, chapter.id);
+
+  const handleOpenNotes = (topic: Topic) => {
+    setNotesActiveTopicId(topic.id);
+    const el = document.getElementById('quick-notes-section');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
 
   // Filter topics
   const filteredTopics = chapter.topics.filter((topic) => {
@@ -81,6 +95,20 @@ export const ChapterView: React.FC<ChapterViewProps> = ({
             <p className="text-xs text-slate-600">
               {chapter.topics.length} syllabus topics in this chapter. Each topic requires a 25/30 MCQ pass score.
             </p>
+
+            {onOpenFlashcards && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  id="btn-chapter-flashcards"
+                  onClick={() => onOpenFlashcards(chapter.id)}
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold transition-all shadow-2xs"
+                >
+                  <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Practice Chapter Flashcards</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Chapter Progress Box */}
@@ -118,6 +146,9 @@ export const ChapterView: React.FC<ChapterViewProps> = ({
           </p>
         </div>
       </div>
+
+      {/* Chapter Technical Medical Terms & Pronunciation Guide */}
+      <ChapterTerminologySection chapter={chapter} />
 
       {/* Filter and Search Controls */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
@@ -198,6 +229,7 @@ export const ChapterView: React.FC<ChapterViewProps> = ({
                 progress={progress}
                 onStartTest={onStartTest}
                 onLockedClick={(t) => setUnlockTargetTopic(t)}
+                onOpenNotes={handleOpenNotes}
               />
             );
           })}
@@ -208,6 +240,13 @@ export const ChapterView: React.FC<ChapterViewProps> = ({
           <p className="text-xs">Adjust your search query or switch filter tabs to view topics.</p>
         </div>
       )}
+
+      {/* Quick Notes Section */}
+      <QuickNotesSection
+        chapter={chapter}
+        activeTopicId={notesActiveTopicId}
+        onSelectTopic={(id) => setNotesActiveTopicId(id)}
+      />
 
       {/* Topic Unlock Notification Modal */}
       <TopicUnlockModal

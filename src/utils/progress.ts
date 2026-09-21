@@ -1,5 +1,6 @@
 import { DMLT_PAPERS } from '../data/dmltData';
-import { DMLTProgressData, PaperId, TopicProgress } from '../types';
+import { DMLTProgressData, PaperId, TopicProgress, DMLTPaper, Chapter, Topic } from '../types';
+import { recordMCQsForToday, resetTodayProgress } from './dailyGoal';
 
 const PROGRESS_STORAGE_KEY = 'dmlt_smart_study_progress_v2';
 const RECENT_TESTS_KEY = 'dmlt_smart_study_recent_tests_v2';
@@ -15,6 +16,7 @@ export interface RecentCompletion {
   total: number;
   date: string;
   passed: boolean;
+  timestamp?: number;
 }
 
 export function getDMLTProgress(): DMLTProgressData {
@@ -114,12 +116,20 @@ export function recordTestAttempt(
       score,
       total,
       date: now,
-      passed: isPass
+      passed: isPass,
+      timestamp: Date.now()
     });
     // Keep last 50 attempts
     localStorage.setItem(RECENT_TESTS_KEY, JSON.stringify(recentList.slice(0, 50)));
   } catch (err) {
     console.error('Failed to record recent completion', err);
+  }
+
+  // Update Daily Study Goal tally
+  try {
+    recordMCQsForToday(total || 30, true);
+  } catch (err) {
+    console.error('Failed to record daily MCQ goal progress', err);
   }
 
   return {
@@ -136,6 +146,169 @@ export function getRecentCompletions(): RecentCompletion[] {
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
+  }
+}
+
+export function clearRecentTests(): void {
+  try {
+    localStorage.removeItem(RECENT_TESTS_KEY);
+    window.dispatchEvent(new Event('dmlt-progress-updated'));
+  } catch (err) {
+    console.error('Failed to clear recent tests', err);
+  }
+}
+
+export function seedSampleTestHistory(): void {
+  // Generates 10 realistic diagnostic MCQ attempts spanning Pathology, Microbiology, and Biochemistry
+  const sampleData: RecentCompletion[] = [
+    {
+      topicId: 'p1-c1-t1',
+      topicTitle: 'Principles of Clinical Hematology & Blood Cell Morphology',
+      chapterTitle: 'General Pathology & Hematology Fundamentals',
+      paperTitle: 'Paper I: Pathology',
+      paperId: 'pathology',
+      score: 21,
+      total: 30,
+      date: 'Sep 12, 09:30 AM',
+      passed: false,
+      timestamp: Date.now() - 9 * 24 * 3600 * 1000
+    },
+    {
+      topicId: 'p2-c1-t1',
+      topicTitle: 'Bacterial Cell Structure, Gram Staining & Smear Preparation',
+      chapterTitle: 'General Bacteriology & Morphology',
+      paperTitle: 'Paper II: Microbiology',
+      paperId: 'microbiology',
+      score: 23,
+      total: 30,
+      date: 'Sep 13, 02:15 PM',
+      passed: false,
+      timestamp: Date.now() - 8 * 24 * 3600 * 1000
+    },
+    {
+      topicId: 'p3-c1-t1',
+      topicTitle: 'Units of Measurement, SI System & Dilution Calculations',
+      chapterTitle: 'Clinical Chemistry Instrumentation & Glassware',
+      paperTitle: 'Paper III: Biochemistry',
+      paperId: 'biochemistry',
+      score: 24,
+      total: 30,
+      date: 'Sep 14, 11:00 AM',
+      passed: false,
+      timestamp: Date.now() - 7 * 24 * 3600 * 1000
+    },
+    {
+      topicId: 'p1-c2-t1',
+      topicTitle: 'Hemoglobin Estimation: Sahli Acid Hematin & Drabkin Cyanmethemoglobin',
+      chapterTitle: 'Clinical Hematology & Coagulation Studies',
+      paperTitle: 'Paper I: Pathology',
+      paperId: 'pathology',
+      score: 26,
+      total: 30,
+      date: 'Sep 15, 04:45 PM',
+      passed: true,
+      timestamp: Date.now() - 6 * 24 * 3600 * 1000
+    },
+    {
+      topicId: 'p2-c2-t1',
+      topicTitle: 'Culture Media: Nutrient Agar, Blood Agar & MacConkey Media',
+      chapterTitle: 'Bacterial Culture & Antimicrobial Susceptibility',
+      paperTitle: 'Paper II: Microbiology',
+      paperId: 'microbiology',
+      score: 25,
+      total: 30,
+      date: 'Sep 16, 10:20 AM',
+      passed: true,
+      timestamp: Date.now() - 5 * 24 * 3600 * 1000
+    },
+    {
+      topicId: 'p3-c2-t1',
+      topicTitle: 'Blood Glucose Estimation: GOD-POD Enzymatic Method & Normal Ranges',
+      chapterTitle: 'Carbohydrate Metabolism & Diagnostic Tests',
+      paperTitle: 'Paper III: Biochemistry',
+      paperId: 'biochemistry',
+      score: 27,
+      total: 30,
+      date: 'Sep 17, 03:30 PM',
+      passed: true,
+      timestamp: Date.now() - 4 * 24 * 3600 * 1000
+    },
+    {
+      topicId: 'p1-c3-t1',
+      topicTitle: 'ABO Blood Grouping: Forward & Reverse Grouping Methods',
+      chapterTitle: 'Blood Banking & Transfusion Medicine',
+      paperTitle: 'Paper I: Pathology',
+      paperId: 'pathology',
+      score: 28,
+      total: 30,
+      date: 'Sep 18, 01:15 PM',
+      passed: true,
+      timestamp: Date.now() - 3 * 24 * 3600 * 1000
+    },
+    {
+      topicId: 'p2-c3-t1',
+      topicTitle: 'Staphylococcus aureus: Catalase, Coagulase & Mannitol Salt Agar',
+      chapterTitle: 'Systematic Bacteriology (Gram-Positive Cocci)',
+      paperTitle: 'Paper II: Microbiology',
+      paperId: 'microbiology',
+      score: 27,
+      total: 30,
+      date: 'Sep 19, 11:40 AM',
+      passed: true,
+      timestamp: Date.now() - 2 * 24 * 3600 * 1000
+    },
+    {
+      topicId: 'p3-c3-t1',
+      topicTitle: 'Serum Total Protein & Albumin-to-Globulin (A/G) Ratio by Biuret Method',
+      chapterTitle: 'Lipid, Protein & Liver Function Testing',
+      paperTitle: 'Paper III: Biochemistry',
+      paperId: 'biochemistry',
+      score: 28,
+      total: 30,
+      date: 'Sep 20, 04:10 PM',
+      passed: true,
+      timestamp: Date.now() - 1 * 24 * 3600 * 1000
+    },
+    {
+      topicId: 'p1-c1-t2',
+      topicTitle: 'Peripheral Blood Smear: Romanowsky Stains (Leishman & Giemsa)',
+      chapterTitle: 'General Pathology & Hematology Fundamentals',
+      paperTitle: 'Paper I: Pathology',
+      paperId: 'pathology',
+      score: 29,
+      total: 30,
+      date: 'Sep 21, 09:15 AM',
+      passed: true,
+      timestamp: Date.now()
+    }
+  ];
+
+  try {
+    localStorage.setItem(RECENT_TESTS_KEY, JSON.stringify(sampleData));
+    // Also mark these topics in progress map
+    const progressData = getDMLTProgress();
+    sampleData.forEach(item => {
+      if (!progressData[item.paperId]) progressData[item.paperId] = {};
+      // find chapter
+      const p = DMLT_PAPERS.find(paper => paper.id === item.paperId);
+      const ch = p?.chapters.find(c => c.topics.some(t => t.id === item.topicId));
+      if (ch) {
+        if (!progressData[item.paperId][ch.id]) progressData[item.paperId][ch.id] = {};
+        progressData[item.paperId][ch.id][item.topicId] = {
+          completed: item.passed,
+          bestScore: item.score,
+          latestScore: item.score,
+          attempts: 1,
+          lastAttemptDate: item.date,
+          completedDate: item.passed ? item.date : undefined
+        };
+      }
+    });
+    saveDMLTProgress(progressData);
+    recordMCQsForToday(30, true);
+    window.dispatchEvent(new Event('dmlt-progress-updated'));
+  } catch (err) {
+    console.error('Failed to seed sample test history', err);
   }
 }
 
@@ -276,12 +449,33 @@ export function toggleMasterChecklist(id: string): boolean {
   }
 }
 
+// Get first pending or recommended topic for quick test
+export function getFirstPendingTopic(): { paper: DMLTPaper; chapter: Chapter; topic: Topic } | null {
+  const progress = getDMLTProgress();
+  for (const paper of DMLT_PAPERS) {
+    for (const chapter of paper.chapters) {
+      for (const topic of chapter.topics) {
+        if (!progress[paper.id]?.[chapter.id]?.[topic.id]?.completed) {
+          return { paper, chapter, topic };
+        }
+      }
+    }
+  }
+  const defaultPaper = DMLT_PAPERS[0];
+  const defaultChapter = defaultPaper?.chapters[0];
+  if (defaultPaper && defaultChapter && defaultChapter.topics[0]) {
+    return { paper: defaultPaper, chapter: defaultChapter, topic: defaultChapter.topics[0] };
+  }
+  return null;
+}
+
 // Reset all progress
 export function resetAllProgress(): void {
   try {
     localStorage.removeItem(PROGRESS_STORAGE_KEY);
     localStorage.removeItem(RECENT_TESTS_KEY);
     localStorage.removeItem(MASTER_CHECKLIST_KEY);
+    resetTodayProgress();
     window.dispatchEvent(new Event('dmlt-progress-updated'));
     window.dispatchEvent(new Event('dmlt-master-checklist-updated'));
   } catch (err) {

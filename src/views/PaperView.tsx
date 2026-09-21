@@ -6,9 +6,10 @@ import {
   Microscope,
   FlaskConical,
   CheckCircle2,
-  Filter
+  Filter,
+  Layers
 } from 'lucide-react';
-import { DMLTPaper, Chapter, Topic } from '../types';
+import { DMLTPaper, Chapter, Topic, PaperId } from '../types';
 import { ChapterCard } from '../components/ChapterCard';
 import { calculatePaperProgress, calculateChapterProgress } from '../utils/progress';
 
@@ -16,12 +17,14 @@ interface PaperViewProps {
   paper: DMLTPaper;
   onBack: () => void;
   onOpenChapter: (chapter: Chapter) => void;
+  onOpenFlashcards?: (paperId: PaperId) => void;
 }
 
 export const PaperView: React.FC<PaperViewProps> = ({
   paper,
   onBack,
-  onOpenChapter
+  onOpenChapter,
+  onOpenFlashcards
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<'all' | 'completed' | 'pending'>('all');
@@ -96,6 +99,19 @@ export const PaperView: React.FC<PaperViewProps> = ({
               <p className="text-xs text-slate-600 max-w-2xl leading-relaxed">
                 {paper.description}
               </p>
+
+              {onOpenFlashcards && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => onOpenFlashcards(paper.id)}
+                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold transition-all shadow-2xs"
+                  >
+                    <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Practice {paper.title} Flashcards</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 

@@ -7,11 +7,12 @@ import {
   CheckSquare,
   BarChart3,
   RotateCcw,
-  Sparkles
+  Sparkles,
+  Layers
 } from 'lucide-react';
 import { PaperId } from '../types';
 
-export type ActiveView = 'dashboard' | 'paper' | 'chapter' | 'master_checklist' | 'progress';
+export type ActiveView = 'dashboard' | 'paper' | 'chapter' | 'master_checklist' | 'progress' | 'flashcards';
 
 interface SidebarProps {
   activeView: ActiveView;
@@ -145,8 +146,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
 
         <div className="px-3 pt-4 pb-1 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
-          Review & Reports
+          Review & Practice
         </div>
+
+        <button
+          id="nav-flashcards"
+          onClick={() => onNavigate('flashcards')}
+          className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            activeView === 'flashcards'
+              ? 'bg-indigo-50 text-indigo-700 font-semibold'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <Layers className="w-4 h-4 text-indigo-600" />
+            <span>Flashcards</span>
+          </div>
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700">
+            Recall
+          </span>
+        </button>
 
         <button
           id="nav-master-checklist"

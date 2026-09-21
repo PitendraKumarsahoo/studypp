@@ -1,6 +1,6 @@
 {
   "name": "DMLT Smart Study",
-  "description": "DMLT 2nd Year Study Checklist and 30-MCQ Practice Web Application for Pathology, Microbiology, and Biochemistry.",
+  "description": "DMLT 2nd Year Study Checklist, 30-MCQ Practice, and Medical Terminology Pronunciation Web Application for Pathology, Microbiology, and Biochemistry.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

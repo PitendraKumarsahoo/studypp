@@ -1,14 +1,13 @@
 import { MCQQuestion, Topic } from '../types';
 
-// Topic-specific knowledge bases and procedural generators designed for DMLT 2nd Year
-interface QuestionTemplate {
+export interface QuestionTemplate {
   q: string;
-  options: [string, string, string, string];
-  answer: number;
+  options: [string, string, string, string]; // [correctAnswer, wrong1, wrong2, wrong3]
+  answer?: number;
   explanation: string;
 }
 
-// Global seedable/shuffle helper
+// Utility to shuffle an array
 function shuffleArray<T>(array: T[]): T[] {
   const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
@@ -18,28 +17,61 @@ function shuffleArray<T>(array: T[]): T[] {
   return arr;
 }
 
-// Extensive topic-specific question builder
+/**
+ * Returns 30 rigorous, 2nd-year DMLT standard MCQs for the given topic.
+ * Distractors and options are completely randomized across A, B, C, and D
+ * with ~7-8 questions assigned to each option letter, eliminating any default to option A.
+ */
 export function getQuestionsForTopic(topic: Topic): MCQQuestion[] {
   const templates: QuestionTemplate[] = [];
   const { id, title, chapterId, paperId } = topic;
 
-  // Add chapter/topic specific medical knowledge questions
+  // 1. Build topic & chapter domain questions conforming to DMLT 2nd Year standard
   buildDomainQuestions(paperId, chapterId, id, title, templates);
 
-  // Ensure there are at least 32-40 unique questions in the pool so 30 can be selected without duplication
+  // 2. Add high-standard clinical laboratory questions to ensure a 50+ question pool
   ensureMinimumQuestionCount(topic, templates);
 
-  // Pick exactly 30 unique questions
-  const shuffled = shuffleArray(templates);
-  const selected = shuffled.slice(0, 30);
+  // 3. Shuffle pool and select exactly 30 questions
+  const shuffledPool = shuffleArray(templates);
+  const selected = shuffledPool.slice(0, 30);
 
-  return selected.map((t, idx) => ({
-    id: `${topic.id}_q_${idx + 1}`,
-    question: t.q,
-    options: t.options,
-    correctAnswer: t.answer,
-    explanation: t.explanation
-  }));
+  // 4. Create an evenly balanced distribution of correct answers across options A (0), B (1), C (2), D (3)
+  // For 30 questions: balanced among 0, 1, 2, 3
+  const baseSlots = [0, 1, 2, 3];
+  const targetSlots: number[] = [];
+  for (let i = 0; i < selected.length; i++) {
+    targetSlots.push(baseSlots[i % 4]);
+  }
+  // Shuffle the target slots so the sequence of answers (A, B, C, D) is randomized across the test
+  const randomizedSlots = shuffleArray(targetSlots);
+
+  return selected.map((t, idx) => {
+    const originalCorrectIndex = t.answer ?? 0;
+    const correctText = t.options[originalCorrectIndex];
+    const distractors = t.options.filter((_, i) => i !== originalCorrectIndex);
+    const shuffledDistractors = shuffleArray(distractors);
+
+    // Target slot for the correct answer: 0 = A, 1 = B, 2 = C, 3 = D
+    const targetSlot = randomizedSlots[idx];
+    const finalOptions: [string, string, string, string] = ['', '', '', ''];
+    finalOptions[targetSlot] = correctText;
+
+    let dIdx = 0;
+    for (let slot = 0; slot < 4; slot++) {
+      if (slot !== targetSlot) {
+        finalOptions[slot] = shuffledDistractors[dIdx++];
+      }
+    }
+
+    return {
+      id: `${topic.id}_q_${idx + 1}`,
+      question: t.q,
+      options: finalOptions,
+      correctAnswer: targetSlot,
+      explanation: t.explanation
+    };
+  });
 }
 
 function buildDomainQuestions(
@@ -51,1563 +83,938 @@ function buildDomainQuestions(
 ) {
   const lowerTitle = title.toLowerCase();
 
-  // PATHOLOGY DOMAINS
+  // =========================================================================
+  // PAPER I — PATHOLOGY (Blood Banking, Immunohematology, Histotechnology, Cytology)
+  // =========================================================================
   if (paperId === 'pathology') {
-    if (chapterId.includes('ch1') || lowerTitle.includes('immunohematology') || lowerTitle.includes('secretor') || lowerTitle.includes('h gene')) {
+    // Blood Group Genetics & Antigens
+    if (lowerTitle.includes('abo') || lowerTitle.includes('h gene') || lowerTitle.includes('secretor') || lowerTitle.includes('group') || chapterId.includes('ch1') || chapterId.includes('ch3')) {
       templates.push(
         {
-          q: 'What is the primary function of the H gene in the ABO blood group system?',
-          options: ['Transfers L-fucose to precursor substance', 'Adds N-acetylgalactosamine to O antigen', 'Directly produces anti-A antibodies', 'Synthesizes Rh polypeptides'],
-          answer: 0,
-          explanation: 'The H gene (FUT1) encodes alpha-1,2-fucosyltransferase which attaches L-fucose to the precursor oligosaccharide, forming the H antigen.'
+          q: 'Which specific glycosyltransferase enzyme is encoded by the human ABO "A" gene locus on chromosome 9?',
+          options: [
+            'UDP-N-acetylgalactosaminyltransferase',
+            'UDP-galactosyltransferase',
+            'Alpha-1,2-L-fucosyltransferase',
+            'Sialyltransferase'
+          ],
+          explanation: 'The A gene specifies alpha-1,3-N-acetylgalactosaminyltransferase, which adds N-acetylgalactosamine (GalNAc) to the H antigen precursor.'
         },
         {
-          q: 'Which sugar imparts group A specificity to the precursor substance?',
-          options: ['N-acetylgalactosamine', 'D-galactose', 'L-fucose', 'D-glucose'],
-          answer: 0,
-          explanation: 'Group A enzyme adds N-acetylgalactosamine (GalNAc) to the H substance.'
+          q: 'Which immunodominant sugar defines the antigenic specificity of the Blood Group B antigen?',
+          options: [
+            'D-galactose',
+            'N-acetylgalactosamine',
+            'L-fucose',
+            'N-acetylglucosamine'
+          ],
+          explanation: 'The B gene encodes alpha-1,3-D-galactosyltransferase, which attaches D-galactose to the terminal galactose of the H substance.'
         },
         {
-          q: 'Which sugar confers group B antigen specificity on RBCs?',
-          options: ['D-galactose', 'N-acetylgalactosamine', 'L-fucose', 'Sialic acid'],
-          answer: 0,
-          explanation: 'The B gene produces galactosyltransferase which attaches D-galactose to the H antigen.'
+          q: 'Individuals exhibiting the rare Bombay phenotype (Oh) inherit which genotype and lack which antigen?',
+          options: [
+            'Genotype hh; completely lack H, A, and B antigens on RBCs',
+            'Genotype Hh; lack only A antigen',
+            'Genotype SeSe; lack secretor status',
+            'Genotype Rh null; lack D antigen'
+          ],
+          explanation: 'Bombay phenotype individuals are homozygous recessive (hh) for the FUT1 gene, unable to synthesize H antigen, and produce potent anti-H, anti-A, and anti-B.'
         },
         {
-          q: 'Individuals who inherit hh genotype and cannot produce H antigen on RBCs belong to which phenotype?',
-          options: ['Bombay phenotype (Oh)', 'Secretor positive phenotype', 'Du variant', 'Rh null phenotype'],
-          answer: 0,
-          explanation: 'Bombay phenotype (Oh) lacks the H gene (hh) and therefore lacks H, A, and B antigens on RBCs.'
+          q: 'Which seed extract lectin is routinely used in blood banking to differentiate subgroup A1 from subgroup A2?',
+          options: [
+            'Dolichos biflorus lectin (Anti-A1)',
+            'Ulex europaeus lectin',
+            'Bandeiraea simplicifolia',
+            'Arachis hypogaea'
+          ],
+          explanation: 'Dolichos biflorus extract serves as Anti-A1 lectin, agglutinating A1 and A1B red cells but not A2 or A2B cells.'
         },
         {
-          q: 'Which antibodies are naturally present in the serum of a Bombay phenotype person?',
-          options: ['Anti-A, Anti-B, and Anti-H', 'Only Anti-A', 'Only Anti-H', 'No ABO antibodies'],
-          answer: 0,
-          explanation: 'Because Bombay individuals completely lack H antigen, they form potent Anti-H in addition to Anti-A and Anti-B.'
+          q: 'Which seed lectin reacts with the H substance and is used to verify the presence of H antigen?',
+          options: [
+            'Ulex europaeus lectin (Anti-H)',
+            'Dolichos biflorus',
+            'Salvia sclarea',
+            'Vicia graminea'
+          ],
+          explanation: 'Ulex europaeus seed extract has Anti-H specificity, strongly agglutinating group O cells (which have the highest concentration of H substance).'
         },
         {
-          q: 'What percentage of the population are secretors of ABH antigens in body fluids?',
-          options: ['Approximately 80%', 'Approximately 20%', '100%', 'Less than 5%'],
-          answer: 0,
-          explanation: 'About 80% of individuals inherit the Se gene (SeSe or Sese) and secrete water-soluble ABH antigens in saliva and body fluids.'
-        },
-        {
-          q: 'Which lectin is specifically used to test for the presence of H antigen?',
-          options: ['Ulex europaeus', 'Dolichos biflorus', 'Bandeiraea simplicifolia', 'Vicia faba'],
-          answer: 0,
-          explanation: 'Anti-H lectin is derived from the seeds of Ulex europaeus and agglutinates RBCs with H antigen.'
-        },
-        {
-          q: 'Which lectin differentiates A1 from A2 subgroup of red cells?',
-          options: ['Dolichos biflorus', 'Ulex europaeus', 'Arachis hypogaea', 'Salvia sclarea'],
-          answer: 0,
-          explanation: 'Dolichos biflorus seed extract serves as Anti-A1 lectin, agglutinating A1 cells but not A2 cells.'
-        },
-        {
-          q: 'Immunohematology deals with the study of:',
-          options: ['Antigen-antibody reactions related to blood components', 'Bacterial toxins in blood', 'Renal clearance kinetics', 'Hormonal assays in serum'],
-          answer: 0,
-          explanation: 'Immunohematology (blood banking) focuses on immune responses and antigen-antibody interactions involving blood cells.'
-        },
-        {
-          q: 'The Se (secretor) gene is located on which human chromosome?',
-          options: ['Chromosome 19', 'Chromosome 9', 'Chromosome 1', 'Chromosome 6'],
-          answer: 0,
-          explanation: 'The Se gene (FUT2) and H gene (FUT1) are located closely linked on chromosome 19.'
+          q: 'On which human chromosome is the Secretor (Se) gene (FUT2) located?',
+          options: [
+            'Chromosome 19',
+            'Chromosome 9',
+            'Chromosome 1',
+            'Chromosome 6'
+          ],
+          explanation: 'The secretor (Se) gene (FUT2) and H gene (FUT1) are closely linked on chromosome 19q13.3.'
         }
       );
     }
 
-    if (chapterId.includes('ch2') || lowerTitle.includes('antigen') || lowerTitle.includes('antibody') || lowerTitle.includes('immunoglobulin')) {
+    // Rh System & Immunohematology
+    if (lowerTitle.includes('rh') || lowerTitle.includes('du') || lowerTitle.includes('variant') || chapterId.includes('ch4')) {
       templates.push(
         {
-          q: 'Which immunoglobulin class predominantly acts as "complete" or saline-agglutinating antibody?',
-          options: ['IgM', 'IgG', 'IgA', 'IgE'],
-          answer: 0,
-          explanation: 'IgM is a pentamer with high molecular weight and 10 binding sites, capable of direct agglutination in saline.'
+          q: 'In the Fisher-Race nomenclature for the Rh blood group system, which antigens are considered alleles?',
+          options: [
+            'D/d (hypothetical), C/c, and E/e',
+            'A, B, and H',
+            'M, N, S, and s',
+            'Fya and Fyb'
+          ],
+          explanation: 'Fisher-Race theorized three closely linked Rh gene loci with codominant alleles: C/c, E/e, and D (d designates the absence of D antigen).'
         },
         {
-          q: 'Which immunoglobulin class can cross the human placental barrier?',
-          options: ['IgG', 'IgM', 'IgA', 'IgE'],
-          answer: 0,
-          explanation: 'IgG is a monomeric antibody capable of crossing the placenta to protect the fetus or cause HDN.'
+          q: 'What is the clinical significance of classifying a blood donor as Weak D (Du positive)?',
+          options: [
+            'The donor must be categorized as Rh Positive to prevent sensitizing Rh-negative recipients',
+            'The donor is classified as Rh Negative',
+            'The blood can only be given to Bombay phenotype patients',
+            'The blood must be discarded immediately'
+          ],
+          explanation: 'Weak D donor units carry functional D antigen that can stimulate Anti-D antibody production in Rh-negative recipients; hence donors are labeled Rh Positive.'
         },
         {
-          q: 'The strength of an individual antigen-antibody bond at a single epitope is called:',
-          options: ['Affinity', 'Avidity', 'Prozone', 'Postzone'],
-          answer: 0,
-          explanation: 'Affinity is the chemical binding strength between an epitope and a single paratope.'
-        },
-        {
-          q: 'The overall combined binding power of a multivalent antibody with a multivalent antigen is known as:',
-          options: ['Avidity', 'Affinity', 'Cross-reactivity', 'Titer'],
-          answer: 0,
-          explanation: 'Avidity measures the total functional binding strength of multivalent interactions.'
-        },
-        {
-          q: 'False negative agglutination caused by antibody excess is referred to as:',
-          options: ['Prozone phenomenon', 'Postzone phenomenon', 'Zone of equivalence', 'Rouleaux formation'],
-          answer: 0,
-          explanation: 'Prozone occurs when excess uncomplexed antibody blocks lattice formation, preventing visible agglutination.'
-        },
-        {
-          q: 'Naturally occurring ABO antibodies belong primarily to which class in group A and B individuals?',
-          options: ['IgM', 'IgG', 'IgE', 'IgD'],
-          answer: 0,
-          explanation: 'Group A and B serum contains predominantly IgM anti-B and anti-A respectively; group O serum has significant IgG.'
-        },
-        {
-          q: 'Which factor lowers the zeta potential between red blood cells to enhance IgG agglutination?',
-          options: ['Bovine serum albumin / LISS', 'Distilled water', 'Heparin', 'Sodium citrate'],
-          answer: 0,
-          explanation: 'Enhancement media like albumin, LISS, or enzymes reduce the dielectric constant and zeta potential between RBCs.'
-        },
-        {
-          q: 'At what optimum temperature do cold antibodies (such as Anti-I and naturally occurring Anti-M) react?',
-          options: ['4°C to 22°C', '37°C', '56°C', '60°C'],
-          answer: 0,
-          explanation: 'Cold agglutinins typically react best at lower temperatures (4°C to room temperature).'
+          q: 'What is the primary immunological mechanism that causes Hemolytic Disease of the Fetus and Newborn (HDFN)?',
+          options: [
+            'Maternal IgG antibodies crossing the placenta and binding to fetal RhD-positive erythrocytes',
+            'Maternal IgM antibodies lysing fetal white blood cells',
+            'Fetal IgA antibodies attacking maternal red cells',
+            'Complement activation by maternal IgE antibodies'
+          ],
+          explanation: 'Maternal IgG anti-D (produced after prior sensitization) crosses the placental syncytiotrophoblast barrier and destroys fetal Rh-positive red cells in utero.'
         }
       );
     }
 
-    if (chapterId.includes('ch3') || lowerTitle.includes('abo blood group') || lowerTitle.includes('forward grouping') || lowerTitle.includes('tube method')) {
+    // Coomb's Test & Cross-matching
+    if (lowerTitle.includes('coomb') || lowerTitle.includes('antiglobulin') || lowerTitle.includes('cross') || lowerTitle.includes('compat') || chapterId.includes('ch5') || chapterId.includes('ch6')) {
       templates.push(
         {
-          q: 'Who discovered the ABO blood group system in 1900?',
-          options: ['Karl Landsteiner', 'Alexander Wiener', 'Philip Levine', 'Robin Coombs'],
-          answer: 0,
-          explanation: 'Karl Landsteiner discovered the ABO blood group system in 1900 and received the Nobel Prize in 1930.'
+          q: 'What is the primary cause of false-negative results in the Indirect Antiglobulin Test (IAT)?',
+          options: [
+            'Inadequate saline washing of red cells leading to neutralization of AHG reagent by free trace globulins',
+            'Over-centrifugation of the reaction tube',
+            'Use of contaminated test tubes',
+            'Extreme bacterial contamination of the sample'
+          ],
+          explanation: 'Trace free serum IgG globulins (as little as 1 µg/mL) will neutralize the Anti-Human Globulin reagent, leaving no AHG to crosslink sensitized red cells.'
         },
         {
-          q: 'What is the optimal concentration of RBC suspension used in standard tube blood grouping?',
-          options: ['2% to 5%', '10% to 15%', '20% to 30%', '50%'],
-          answer: 0,
-          explanation: 'A 2% to 5% red cell suspension provides the ideal antigen-antibody ratio for tube testing.'
+          q: 'Polyspecific Anti-Human Globulin (AHG / Coomb’s) reagent is formulated to detect:',
+          options: [
+            'Both human IgG antibodies and C3d complement components bound to red blood cells',
+            'Only human IgM antibodies',
+            'Only anti-D antibodies',
+            'Platelet factor 4 and fibrinogen'
+          ],
+          explanation: 'Polyspecific AHG contains rabbit or murine monoclonal anti-human IgG and anti-C3d (complement fraction) to detect both antibodies and complement.'
         },
         {
-          q: 'Forward (front) grouping determines:',
-          options: ['Antigens on the patient’s red blood cells', 'Antibodies in the patient’s serum', 'Secretor status', 'Rh genotype'],
-          answer: 0,
-          explanation: 'Forward grouping uses known antisera (Anti-A, Anti-B, Anti-D) to detect unknown RBC surface antigens.'
+          q: 'What does the Major Crossmatch test in pre-transfusion compatibility testing?',
+          options: [
+            'Donor red blood cells mixed with recipient serum',
+            'Recipient red blood cells mixed with donor serum',
+            'Donor plasma mixed with recipient plasma',
+            'Donor red cells mixed with saline control'
+          ],
+          explanation: 'The Major Crossmatch verifies that the recipient serum does not contain preformed antibodies directed against donor red blood cell antigens.'
         },
         {
-          q: 'Reverse (back) grouping determines:',
-          options: ['Antibodies in the patient’s serum/plasma', 'Antigens on red blood cells', 'Hemoglobin variants', 'RBC survival rate'],
-          answer: 0,
-          explanation: 'Reverse grouping uses known A and B red blood cells to identify agglutinins present in patient serum.'
-        },
-        {
-          q: 'What color dye is added to commercial Anti-A antiserum as per international standards?',
-          options: ['Blue (Patent Blue / Methylene Blue)', 'Yellow (Tartrazine / Acriflavine)', 'Red', 'Green'],
-          answer: 0,
-          explanation: 'Commercial Anti-A is tinted blue, while Anti-B is tinted yellow to prevent laboratory errors.'
-        },
-        {
-          q: 'What color dye is added to commercial Anti-B antiserum?',
-          options: ['Yellow', 'Blue', 'Colorless', 'Purple'],
-          answer: 0,
-          explanation: 'Anti-B antiserum is colored yellow for standard visual identification.'
-        },
-        {
-          q: 'A blood sample shows agglutination with Anti-A, no agglutination with Anti-B, and serum agglutinates B cells. What is the blood group?',
-          options: ['Group A', 'Group B', 'Group AB', 'Group O'],
-          answer: 0,
-          explanation: 'Positive forward reaction with Anti-A and reverse agglutination with B cells confirms blood group A.'
-        },
-        {
-          q: 'A blood sample shows agglutination with neither Anti-A nor Anti-B, while serum agglutinates both A cells and B cells. What is the blood group?',
-          options: ['Group O', 'Group AB', 'Group A', 'Bombay phenotype'],
-          answer: 0,
-          explanation: 'No antigens on RBCs and both anti-A and anti-B in serum corresponds to standard group O.'
-        },
-        {
-          q: 'Why is slide grouping considered unsuitable for routine cross-matching or donor confirmation?',
-          options: ['Risk of drying and lower sensitivity to weak subgroups', 'It requires 24 hours of incubation', 'It destroys RBC antigens', 'It requires radioactive isotopes'],
-          answer: 0,
-          explanation: 'Slide method has lower sensitivity, dries quickly, and cannot reliably detect weak agglutinins or resolve discrepancies.'
+          q: 'In compatibility testing, what is the role of Low Ionic Strength Solution (LISS)?',
+          options: [
+            'Reduces the net electrostatic charge (zeta potential) to accelerate antibody uptake and shorten incubation time to 10–15 minutes',
+            'Completely dissolves RBC membranes',
+            'Neutralizes naturally occurring IgM antibodies',
+            'Prevents clotting of serum'
+          ],
+          explanation: 'LISS reduces ionic shielding around red cells, lowering the zeta potential barrier and allowing IgG antibodies to bind antigens in 10–15 min at 37°C.'
         }
       );
     }
 
-    if (chapterId.includes('ch4') || lowerTitle.includes('rh blood group') || lowerTitle.includes('du variant')) {
+    // Blood Components & Transfusion Reactions
+    if (lowerTitle.includes('component') || lowerTitle.includes('transfusion') || lowerTitle.includes('storage') || chapterId.includes('ch7')) {
       templates.push(
         {
-          q: 'Which antigen in the Rh blood group system is the most immunogenic?',
-          options: ['D antigen', 'C antigen', 'c antigen', 'E antigen'],
-          answer: 0,
-          explanation: 'The D antigen is second only to ABO in immunogenicity and defines Rh positivity or negativity.'
+          q: 'What are the major therapeutic coagulation factors present in Cryoprecipitate?',
+          options: [
+            'Factor VIII:C, Fibrinogen, von Willebrand Factor (vWF), and Factor XIII',
+            'Factor II, VII, IX, and X only',
+            'Albumin and Immunoglobulin G only',
+            'Platelet factor 3 and Calcium'
+          ],
+          explanation: 'Cryoprecipitate is the cold-insoluble precipitate of thawed FFP enriched in Factor VIII, Fibrinogen (≥150 mg), vWF, and Factor XIII.'
         },
         {
-          q: 'A blood donor whose red cells are initially negative for D in direct tube test but agglutinate in Indirect Antiglobulin Test (IAT) is called:',
-          options: ['Weak D (Du variant)', 'Partial D', 'Rh null', 'D-deletion'],
-          answer: 0,
-          explanation: 'Weak D (formerly Du) has quantitative reduction of D antigen, detectable only by the indirect antiglobulin phase.'
+          q: 'What is the mandatory storage temperature and shelf life of Fresh Frozen Plasma (FFP)?',
+          options: [
+            '-18°C or colder for up to 1 year (-30°C preferred)',
+            '2°C to 6°C for 35 days',
+            '20°C to 24°C for 5 days',
+            'Room temperature for 48 hours'
+          ],
+          explanation: 'FFP must be frozen within 8 hours of phlebotomy and stored at -18°C or below for up to 12 months to preserve labile factors V and VIII.'
         },
         {
-          q: 'How should a blood donor testing as Weak D positive be classified for transfusion purposes?',
-          options: ['Classified as Rh Positive', 'Classified as Rh Negative', 'Classified as Bombay', 'Classified as group AB'],
-          answer: 0,
-          explanation: 'Weak D blood donors must be labeled Rh Positive to prevent sensitizing an Rh-negative recipient.'
+          q: 'Platelet concentrates must be maintained at what temperature and physical condition?',
+          options: [
+            '20°C to 24°C with continuous gentle horizontal agitation for a maximum of 5 days',
+            '2°C to 6°C without agitation for 21 days',
+            '-20°C frozen for 6 months',
+            '37°C in an incubator for 48 hours'
+          ],
+          explanation: 'Platelets require constant agitation at 20°C–24°C to allow gas exchange (O2/CO2) across the bag membrane and prevent platelet aggregation/activation.'
         },
         {
-          q: 'How should a patient (recipient) testing as Weak D positive preferably be transfused in elective situations?',
-          options: ['Rh Negative blood', 'Rh Positive blood', 'Bombay blood', 'Any ABO type'],
-          answer: 0,
-          explanation: 'Weak D recipients (especially partial D) are treated as Rh Negative and given Rh-negative blood to prevent alloimmunization.'
-        },
-        {
-          q: 'Which genetic theory of Rh inheritance was proposed by Fisher and Race?',
-          options: ['Three closely linked gene loci (C/c, D/d, E/e)', 'Single gene locus with multiple alleles (Wiener)', 'Two independent H and O genes', 'Sex-linked inheritance'],
-          answer: 0,
-          explanation: 'Fisher-Race theory proposed three pairs of closely linked alleles: C/c, D/d, and E/e.'
-        },
-        {
-          q: 'What is the most frequent Rh genotype in the general Indian population?',
-          options: ['R1r (CDe/cde)', 'R2R2 (cDE/cDE)', 'rr (cde/cde)', 'R0r (cDe/cde)'],
-          answer: 0,
-          explanation: 'R1r (CDe/cde) and R1R1 (CDe/CDe) are the most prevalent Rh genotypes.'
-        },
-        {
-          q: 'Rh antibodies are typically of which immunoglobulin class?',
-          options: ['IgG (immune antibodies)', 'IgM (naturally occurring)', 'IgA', 'IgE'],
-          answer: 0,
-          explanation: 'Rh antibodies are immune IgG antibodies produced after exposure via transfusion or pregnancy, reacting best at 37°C.'
+          q: 'Which life-threatening pulmonary complication occurs within 6 hours of transfusion due to anti-HLA or anti-neutrophil antibodies in donor plasma?',
+          options: [
+            'Transfusion-Related Acute Lung Injury (TRALI)',
+            'Transfusion-Associated Circulatory Overload (TACO)',
+            'Delayed Hemolytic Transfusion Reaction (DHTR)',
+            'Post-transfusion purpura'
+          ],
+          explanation: 'TRALI is non-cardiogenic pulmonary edema triggered by donor leukocyte antibodies that activate recipient pulmonary neutrophils.'
         }
       );
     }
 
-    if (chapterId.includes('ch5') || lowerTitle.includes('coomb') || lowerTitle.includes('antiglobulin') || lowerTitle.includes('dat') || lowerTitle.includes('iat')) {
+    // Histopathology: Fixatives, Processing, Microtomy, Staining Chemistry
+    if (lowerTitle.includes('fixat') || lowerTitle.includes('process') || lowerTitle.includes('microtome') || lowerTitle.includes('stain') || lowerTitle.includes('decalc') || chapterId.includes('ch8') || chapterId.includes('ch9') || chapterId.includes('ch10') || chapterId.includes('ch11') || chapterId.includes('ch12') || chapterId.includes('ch13') || chapterId.includes('ch14') || chapterId.includes('ch15') || chapterId.includes('ch16') || chapterId.includes('ch17') || chapterId.includes('ch18')) {
       templates.push(
         {
-          q: 'What is the primary reagent used in the Coomb’s (Antiglobulin) test?',
-          options: ['Anti-human globulin (AHG)', 'Bovine albumin 22%', 'Ulex lectin', 'Normal saline 0.9%'],
-          answer: 0,
-          explanation: 'AHG is prepared by immunizing animals with human IgG or complement to bridge sensitizing antibodies on RBCs.'
+          q: 'What is the primary chemical mechanism of tissue fixation by 10% Neutral Buffered Formalin?',
+          options: [
+            'Forms covalent methylene cross-links (-CH2-) between amino groups of adjacent polypeptide chains',
+            'Precipitates cellular proteins via heavy metal denaturation',
+            'Extracts intracellular lipids and carbohydrates',
+            'Hydrolyzes nucleic acids into nucleotides'
+          ],
+          explanation: 'Formaldehyde cross-links protein amino groups via reactive methylene bridges, insolubilizing structural and enzymatic cellular proteins.'
         },
         {
-          q: 'Direct Antiglobulin Test (DAT) is used to detect:',
-          options: ['In vivo sensitization of patient’s RBCs by IgG or complement', 'In vitro antibody in patient serum', 'Bacterial contamination of blood', 'Presence of H antigen'],
-          answer: 0,
-          explanation: 'DAT detects antibodies or complement bound to red cells in vivo (e.g., in HDN, AIHA, hemolytic transfusion reactions).'
+          q: 'How is dark brown/black formalin pigment (acid formaldehyde hematin) removed from tissue sections before staining?',
+          options: [
+            'Treatment with saturated alcoholic picric acid or 1% alcoholic ammonium hydroxide',
+            'Washing with concentrated hydrochloric acid',
+            'Immersion in boiling distilled water',
+            'Bleaching with potassium permanganate'
+          ],
+          explanation: 'Formalin pigment formed in bloody tissues at acidic pH is removed by immersing hydrated sections in saturated alcoholic picric acid for 10–30 min.'
         },
         {
-          q: 'Indirect Antiglobulin Test (IAT) is primarily used for:',
-          options: ['Detection of incomplete antibodies in patient serum in vitro', 'In vivo hemolysis monitoring', 'Platelet count verification', 'WBC antigen mapping'],
-          answer: 0,
-          explanation: 'IAT detects unexpected or incomplete IgG antibodies present in patient serum through in vitro incubation with reagent RBCs.'
+          q: 'Bouin’s fixative solution is composed of which three chemical ingredients?',
+          options: [
+            'Saturated aqueous picric acid, 40% formaldehyde, and glacial acetic acid (15:5:1)',
+            'Mercuric chloride, potassium dichromate, and sodium sulfate',
+            'Absolute ethanol, chloroform, and acetic acid',
+            'Glutaraldehyde, osmium tetroxide, and cacodylate buffer'
+          ],
+          explanation: 'Bouin’s fluid contains picric acid (coagulates proteins), formalin (crosslinks), and glacial acetic acid (counteracts picric acid shrinkage; lyses RBCs).'
         },
         {
-          q: 'Why must red blood cells be thoroughly washed (usually 3–4 times with saline) before adding AHG reagent?',
-          options: ['To remove unbound free serum globulins that neutralize AHG', 'To lyse white blood cells', 'To remove hemoglobin', 'To sterilize the suspension'],
-          answer: 0,
-          explanation: 'Traces of free serum IgG neutralize the AHG reagent, resulting in false negative Coomb’s test results.'
+          q: 'Which chemical reagent is used to determine the end point of decalcification chemically?',
+          options: [
+            'Ammonium hydroxide and 5% ammonium oxalate (detects calcium oxalate precipitate)',
+            'Barium chloride and sulfuric acid',
+            'Silver nitrate and potassium chromate',
+            'Benedict’s reagent'
+          ],
+          explanation: 'Adding ammonium oxalate to neutralized decalcifying fluid precipitates insoluble calcium oxalate if calcium is still leaching from bone.'
         },
         {
-          q: 'What are "Coomb’s control cells" (check cells) used for in the blood bank?',
-          options: ['To confirm true negative AHG tests and verify AHG activity', 'To replace patient serum', 'To detect Rh antigens', 'To dilute saline'],
-          answer: 0,
-          explanation: 'Check cells are IgG-sensitized RBCs added to negative Coomb’s tubes; failure to agglutinate indicates an invalid test.'
+          q: 'What is the standard clearance angle between the microtome knife facet and the paraffin tissue block?',
+          options: [
+            '5° to 10°',
+            '25° to 30°',
+            '0° (flat)',
+            '45° to 60°'
+          ],
+          explanation: 'A clearance angle of 5° to 10° prevents knife facet friction and compression while preventing skipping or chatter.'
         },
         {
-          q: 'In Hemolytic Disease of the Fetus and Newborn (HDFN), which Coomb’s test is performed on cord blood?',
-          options: ['Direct Antiglobulin Test (DAT)', 'Indirect Antiglobulin Test (IAT)', 'Cross-match test', 'Reverse grouping'],
-          answer: 0,
-          explanation: 'Cord blood RBCs are tested with DAT to detect maternal IgG coating the infant’s red cells in utero.'
-        }
-      );
-    }
-
-    if (chapterId.includes('ch6') || lowerTitle.includes('cross-match') || lowerTitle.includes('compatibility')) {
-      templates.push(
-        {
-          q: 'Major cross-match involves mixing:',
-          options: ["Donor's red blood cells and recipient's serum", "Recipient's red blood cells and donor's serum", "Donor's serum and recipient's serum", "Donor's RBCs and normal saline"],
-          answer: 0,
-          explanation: 'Major cross-match detects antibodies in recipient serum that could destroy transfused donor red blood cells.'
+          q: 'In microtomy, what is the primary technical cause of "chatter" (fine horizontal parallel lines across the section)?',
+          options: [
+            'Excessive clearance angle, loose knife clamping screw, or extremely hard/calcified tissue',
+            'Water bath temperature too hot',
+            'Knife angle too small (zero clearance)',
+            'Paraffin wax melting point too low'
+          ],
+          explanation: 'Chatter is mechanical vibration caused by knife looseness, excessive clearance angle, or tissue resistance.'
         },
         {
-          q: 'Minor cross-match involves testing:',
-          options: ["Donor's serum with recipient's red blood cells", "Recipient's serum with donor's red cells", "Donor's platelets with donor's serum", "Recipient's saliva with anti-H"],
-          answer: 0,
-          explanation: 'Minor cross-match tests for antibodies in the donor’s serum directed against recipient red blood cells.'
+          q: 'In Hematoxylin preparation, what is the chemical oxidation product of hematoxylin that acts as the active dye?',
+          options: [
+            'Hematein',
+            'Hematoidin',
+            'Hemosiderin',
+            'Hematoporphyrin'
+          ],
+          explanation: 'Natural hematoxylin is a non-staining phenol oxidized (ripened) into hematein by sodium iodate or atmospheric oxygen.'
         },
         {
-          q: 'Which phase of cross-matching is most critical for detecting clinically significant incomplete IgG antibodies?',
-          options: ['AHG (Antihuman globulin) phase at 37°C', 'Immediate spin saline at room temperature', 'Cold saline phase at 4°C', 'Slide method'],
-          answer: 0,
-          explanation: 'The AHG phase is the most reliable method for detecting clinically significant IgG antibodies like anti-Rh, anti-Kell, and anti-Duffy.'
+          q: 'What is the purpose of the "bluing" step in regressive H&E staining following acid-alcohol differentiation?',
+          options: [
+            'Converts the reddish-soluble alum-hematein lake into an insoluble blue-purple lake in an alkaline environment',
+            'Removes excess eosin from the cytoplasm',
+            'Decolorizes background mucus',
+            'Dehydrates the tissue section'
+          ],
+          explanation: 'Alkaline bluing solutions (Scott’s tap water, lithium carbonate) change the pH above 8.0, converting hematein into an insoluble blue-purple complex.'
         },
         {
-          q: 'If agglutination or hemolysis occurs in any phase of the cross-match, the unit of blood is declared:',
-          options: ['Incompatible and rejected for transfusion', 'Compatible for transfusion', 'Safe for slow infusion', 'Safe if filtered'],
-          answer: 0,
-          explanation: 'Agglutination or hemolysis indicates an incompatible cross-match, precluding safe transfusion of that unit.'
+          q: 'What is the chemical principle of the Periodic Acid–Schiff (PAS) stain?',
+          options: [
+            'Periodic acid oxidizes 1,2-glycol groups to dialdehydes, which recolor colorless Schiff’s reagent to magenta-pink',
+            'Acid dyes bind selectively to basic nuclear histones',
+            'Silver nitrate is reduced to black metallic silver by argyrophil granules',
+            'Basic fuchsin stains bacterial mycolic acids'
+          ],
+          explanation: 'Periodic acid oxidizes 1,2-glycol groups into dialdehydes, which react with basic fuchsin-sulfurous acid (Schiff’s reagent) to form a magenta quinoid dye.'
         },
         {
-          q: 'What is the role of LISS (Low Ionic Strength Saline) in cross-matching?',
-          options: ['Accelerates antibody binding and shortens incubation time to 15 min', 'Neutralizes anti-D antibodies', 'Acts as a preservative', 'Dissolves fibrin clots'],
-          answer: 0,
-          explanation: 'LISS reduces ionic shielding around RBCs, enhancing antibody uptake and reducing incubation time from 45 min to 10-15 min.'
-        }
-      );
-    }
-
-    if (chapterId.includes('ch8') || lowerTitle.includes('blood banking') || lowerTitle.includes('donor') || lowerTitle.includes('component')) {
-      templates.push(
-        {
-          q: 'What is the minimum hemoglobin required for a voluntary blood donor in India?',
-          options: ['12.5 g/dL', '10.0 g/dL', '14.0 g/dL', '11.0 g/dL'],
-          answer: 0,
-          explanation: 'Standard blood donor guidelines require a minimum hemoglobin concentration of 12.5 g/dL.'
+          q: 'When stained with Congo Red and viewed under a polarizing microscope, amyloid demonstrates which characteristic optical feature?',
+          options: [
+            'Apple-green birefringence',
+            'Golden yellow fluorescence',
+            'Red dichroism without birefringence',
+            'Jet black opalescence'
+          ],
+          explanation: 'Congo red molecules intercalate between anti-parallel beta-pleated sheets of amyloid fibrils, producing apple-green birefringence under crossed polars.'
         },
         {
-          q: 'What is the standard storage temperature for Packed Red Blood Cells (PRBC)?',
-          options: ['2°C to 6°C', '-20°C', '20°C to 24°C', '37°C'],
-          answer: 0,
-          explanation: 'PRBC units are stored in monitored blood bank refrigerators maintained strictly between 2°C and 6°C.'
-        },
-        {
-          q: 'What is the shelf life of whole blood collected in CPDA-1 anticoagulant preservative solution?',
-          options: ['35 days', '21 days', '42 days', '14 days'],
-          answer: 0,
-          explanation: 'CPDA-1 (Citrate Phosphate Dextrose Adenine) provides a shelf-life of 35 days at 2°C to 6°C.'
-        },
-        {
-          q: 'Platelet concentrates must be stored at what temperature under continuous gentle agitation?',
-          options: ['20°C to 24°C', '2°C to 6°C', '-18°C', '0°C'],
-          answer: 0,
-          explanation: 'Platelets are stored at 20°C to 24°C with continuous agitation on a platelet agitator to prevent clumping and preserve function.'
-        },
-        {
-          q: 'What is the maximum storage duration for platelet concentrates?',
-          options: ['5 days', '21 days', '35 days', '42 days'],
-          answer: 0,
-          explanation: 'Because platelets are stored at room temperature (20-24°C), the shelf life is limited to 5 days to reduce bacterial contamination risk.'
-        },
-        {
-          q: 'Fresh Frozen Plasma (FFP) stored at -30°C or colder has a validity period of:',
-          options: ['1 year', '35 days', '5 days', '10 years'],
-          answer: 0,
-          explanation: 'FFP maintains labile coagulation factors (Factor V and VIII) for up to 1 year when kept frozen at -30°C or below.'
-        },
-        {
-          q: 'Cryoprecipitate is especially rich in which coagulation factors?',
-          options: ['Factor VIII, Fibrinogen, von Willebrand factor, Factor XIII', 'Factor II, VII, IX, X', 'Albumin and globulin', 'Platelet factor 3'],
-          answer: 0,
-          explanation: 'Cryoprecipitate contains concentrated Factor VIII, Fibrinogen, vWF, and Factor XIII recovered from cold-insoluble FFP.'
-        }
-      );
-    }
-
-    if (chapterId.includes('ch10') || lowerTitle.includes('fixation') || lowerTitle.includes('fixative') || lowerTitle.includes('formalin')) {
-      templates.push(
-        {
-          q: 'What is the primary aim of tissue fixation in histopathology?',
-          options: ['Prevent autolysis and putrefaction while preserving cellular architecture', 'Stain the nuclei blue', 'Remove water from tissue', 'Decompose proteins'],
-          answer: 0,
-          explanation: 'Fixation terminates metabolic processes, prevents autolysis and bacterial decomposition, and stabilizes tissue morphology.'
-        },
-        {
-          q: 'What is 10% neutral buffered formalin (NBF) made of?',
-          options: ['4% formaldehyde in phosphate buffered water', '10% pure formaldehyde gas', '100% formal alcohol', '1% formaldehyde in saline'],
-          answer: 0,
-          explanation: 'Commercial formalin is a 37-40% aqueous formaldehyde solution; a 10% dilution yields approximately 4% formaldehyde buffered to pH 7.0.'
-        },
-        {
-          q: 'What is the recommended fixative volume to tissue volume ratio?',
-          options: ['15:1 to 20:1', '1:1', '2:1', '5:1'],
-          answer: 0,
-          explanation: 'Proper fixation requires 15 to 20 times the volume of fixative relative to tissue volume.'
-        },
-        {
-          q: 'Bouin’s fluid contains which distinctive yellow crystalline component?',
-          options: ['Picric acid', 'Mercuric chloride', 'Chromic acid', 'Osmium tetroxide'],
-          answer: 0,
-          explanation: 'Bouin’s fluid consists of saturated aqueous picric acid, 40% formalin, and glacial acetic acid.'
-        },
-        {
-          q: 'Which fixative is preferred for fixing testicular biopsy and endocrine tissues?',
-          options: ["Bouin's fixative", '10% formalin', 'Absolute alcohol', 'Acetone'],
-          answer: 0,
-          explanation: "Bouin's fluid preserves delicate morphology and nuclear detail, making it ideal for testicular and GI biopsies."
-        },
-        {
-          q: 'Zenker’s fluid contains mercuric chloride and requires post-treatment with which solution to remove mercury pigment?',
-          options: ['Iodine followed by sodium thiosulfate', 'Xylene', 'Absolute alcohol', 'Ammonia water'],
-          answer: 0,
-          explanation: 'Mercury deposits from Zenker’s or Helly’s fluids are cleared using Lugol’s iodine and bleached with 5% sodium thiosulfate.'
-        },
-        {
-          q: 'Which fixative is recognized as the best choice for electron microscopy ultrastructure preservation?',
-          options: ['Glutaraldehyde followed by Osmium tetroxide', '10% Formalin', "Bouin's fluid", "Carnoy's fluid"],
-          answer: 0,
-          explanation: 'Glutaraldehyde provides excellent protein cross-linking and osmium tetroxide stabilizes membrane lipids for TEM.'
-        },
-        {
-          q: 'Carnoy’s fixative is particularly noted for rapid action and preservation of:',
-          options: ['Nucleic acids, glycogen, and chromosome cytology', 'Lipids', 'Red blood cells', 'Bone minerals'],
-          answer: 0,
-          explanation: 'Carnoy’s fluid (ethanol, chloroform, glacial acetic acid) penetrates rapidly and preserves nuclear chromatin and glycogen.'
-        }
-      );
-    }
-
-    if (chapterId.includes('ch11') || lowerTitle.includes('tissue processing') || lowerTitle.includes('dehydration') || lowerTitle.includes('clearing')) {
-      templates.push(
-        {
-          q: 'What is the correct sequence of steps in standard histological tissue processing?',
-          options: ['Dehydration → Clearing → Infiltration / Embedding', 'Clearing → Dehydration → Infiltration', 'Fixation → Infiltration → Dehydration', 'Sectioning → Clearing → Dehydration'],
-          answer: 0,
-          explanation: 'Tissue processing follows: Dehydration (removing water) → Clearing (solvent miscible with wax) → Infiltration (paraffin wax).'
-        },
-        {
-          q: 'Which alcohol series is standardly used for gradual tissue dehydration?',
-          options: ['Ascending grades: 70% → 80% → 90% → Absolute alcohol', 'Descending grades: 100% → 70%', 'Pure acetone directly', '10% formalin series'],
-          answer: 0,
-          explanation: 'Ascending grades of alcohol prevent excessive shrinkage, distortion, and hardening of tissue.'
-        },
-        {
-          q: 'Why is a clearing agent like Xylene necessary before paraffin infiltration?',
-          options: ['Alcohol and paraffin wax are immiscible; Xylene is miscible with both', 'It stains nuclei', 'It decalcifies bone', 'It preserves antigens'],
-          answer: 0,
-          explanation: 'Paraffin wax will not dissolve in alcohol, so clearing agents miscible with both alcohol and wax are required.'
-        },
-        {
-          q: 'What is the ideal melting point of paraffin wax used for routine histology infiltration and embedding?',
-          options: ['56°C to 58°C', '37°C to 40°C', '70°C to 75°C', '90°C'],
-          answer: 0,
-          explanation: 'Paraffin wax with a melting point of 56°C to 58°C provides optimal consistency for sectioning in temperate climates.'
-        },
-        {
-          q: 'Excessive time in clearing agents like xylene causes the tissue to become:',
-          options: ['Brittle, hard, and difficult to section', 'Too soft and swollen', 'Completely dissolved', 'Bleached white'],
-          answer: 0,
-          explanation: 'Prolonged xylene exposure causes severe tissue hardening and brittleness, producing chatter during microtomy.'
-        }
-      );
-    }
-
-    if (chapterId.includes('ch13') || lowerTitle.includes('decalcification')) {
-      templates.push(
-        {
-          q: 'What is the primary objective of decalcification in histotechnology?',
-          options: ['Removal of calcium salts from bone or calcified tissues to allow microtome sectioning', 'Fixing the bone marrow', 'Dehydrating bone tissue', 'Staining osteoblasts'],
-          answer: 0,
-          explanation: 'Decalcification removes rigid calcium hydroxyapatite crystals so the tissue can be cut without ruining microtome blades.'
-        },
-        {
-          q: 'Which chelating agent is widely used for gentle, enzyme-preserving decalcification?',
-          options: ['EDTA (Ethylenediaminetetraacetic acid)', 'Nitric acid', 'Formic acid', 'Sulfuric acid'],
-          answer: 0,
-          explanation: 'EDTA binds calcium ions slowly and gently without distorting micro-architecture or inactivating enzymes.'
-        },
-        {
-          q: 'What is the most accurate and non-destructive method for determining the end-point of decalcification?',
-          options: ['Radiographic (X-ray) examination', 'Needle puncture test', 'Bending and probing with scalpel', 'Smelling the solution'],
-          answer: 0,
-          explanation: 'X-ray radiography confirms complete removal of radio-opaque calcium deposits without mechanically damaging the specimen.'
-        },
-        {
-          q: 'In the chemical test for decalcification end-point, what reagent is added to neutralize acid before adding ammonium oxalate?',
-          options: ['Ammonium hydroxide (neutralizing to pH 7)', 'Hydrochloric acid', 'Glacial acetic acid', 'Xylene'],
-          answer: 0,
-          explanation: 'Decalcifying fluid is neutralized with dilute ammonia; precipitation of white calcium oxalate indicates residual calcium.'
-        }
-      );
-    }
-
-    if (chapterId.includes('ch14') || lowerTitle.includes('microtomy') || lowerTitle.includes('knife') || lowerTitle.includes('sectioning')) {
-      templates.push(
-        {
-          q: 'What is the routine thickness of paraffin sections cut for diagnostic light microscopy?',
-          options: ['3 to 5 microns (µm)', '10 to 15 microns (µm)', '0.5 to 1 micron (µm)', '25 microns (µm)'],
-          answer: 0,
-          explanation: 'Sections cut at 3–5 µm thickness allow clear single-cell layer evaluation under standard high-power microscopy.'
-        },
-        {
-          q: 'What is the temperature of the floating tissue water bath maintained at during microtomy?',
-          options: ['5°C to 10°C below the melting point of paraffin wax (~45°C–50°C)', 'Boiling (100°C)', 'Room temperature (20°C)', '37°C exactly'],
-          answer: 0,
-          explanation: 'Maintaining water at 45°C–50°C expands tissue ribbons and eliminates wrinkles without melting the wax block.'
-        },
-        {
-          q: 'What is the purpose of Mayer’s egg albumin in microtomy?',
-          options: ['Section adhesive to stick tissue firmly to glass slides', 'Tissue clearing agent', 'Nuclear counterstain', 'Knife sharpening compound'],
-          answer: 0,
-          explanation: 'Mayer’s egg albumin glycerol solution coats glass slides to prevent paraffin sections from detaching during staining.'
-        },
-        {
-          q: 'Parallel thick and thin horizontal lines across a section (chatter/vibration) during microtomy are commonly caused by:',
-          options: ['Loose knife/block holder or excessive blade tilt', 'Water bath too warm', 'Over-staining with hematoxylin', 'Paraffin wax too soft'],
-          answer: 0,
-          explanation: 'Chatter is caused by blade or block holder vibration, excessive knife clearance angle, or over-hardened tissue.'
-        },
-        {
-          q: 'Honing of a microtome knife refers to:',
-          options: ['Grinding the cutting edge on a sharpening stone (Belgian black / Arkansas stone)', 'Polishing on a leather strop', 'Coating with oil', 'Heating in an oven'],
-          answer: 0,
-          explanation: 'Honing sharpens the beveled edge and removes nicks; stropping subsequently polishes the edge on leather.'
-        }
-      );
-    }
-
-    if (chapterId.includes('ch16') || chapterId.includes('ch17') || lowerTitle.includes('haematoxylin') || lowerTitle.includes('h&e') || lowerTitle.includes('staining')) {
-      templates.push(
-        {
-          q: 'Haematoxylin is an active dye only when oxidized into which active coloring compound?',
-          options: ['Haematein', 'Eosin Y', 'Hemozoin', 'Hematoidin'],
-          answer: 0,
-          explanation: 'Haematoxylin itself has no staining properties until oxidized (ripened) chemically or naturally into haematein.'
-        },
-        {
-          q: 'In Mayer’s haematoxylin, which chemical agent is used for instantaneous chemical ripening?',
-          options: ['Sodium iodate', 'Mercuric oxide', 'Potassium permanganate', 'Hydrogen peroxide'],
-          answer: 0,
-          explanation: 'Mayer’s haematoxylin uses sodium iodate as an oxidizing agent for immediate ripening.'
-        },
-        {
-          q: 'What mordant is present in both Mayer’s and Harris haematoxylin solutions?',
-          options: ['Potassium or ammonium alum (Aluminium salts)', 'Ferric chloride', 'Phosphotungstic acid', 'Lead nitrate'],
-          answer: 0,
-          explanation: 'Alum haematoxylins use aluminium ions as a mordant to bind anionic phosphate groups of nuclear chromatin.'
-        },
-        {
-          q: 'What is the purpose of "bluing" after haematoxylin staining and acid alcohol differentiation?',
-          options: ['Converting reddish-purple aluminium-haematein into an insoluble blue lake in alkaline pH', 'Staining collagen pink', 'Clearing the slide in xylene', 'Removing excess paraffin'],
-          answer: 0,
-          explanation: 'Mild alkaline solutions (Scott tap water, dilute ammonia, lithium carbonate) change the pH to turn haematoxylin lake blue.'
-        },
-        {
-          q: 'Eosin Y counterstain in routine H&E stains which cellular structures?',
-          options: ['Cytoplasm, muscle fibers, collagen, and RBCs in shades of pink/red', 'Cell nuclei blue', 'Mucin purple', 'DNA black'],
-          answer: 0,
-          explanation: 'Eosin is an acidic xanthene dye that binds cationic basic groups in cytoplasm, collagen, and erythrocytes.'
-        },
-        {
-          q: 'What is DPX composed of in histopathology mounting?',
-          options: ['Distrene, Dibutylphthalate (plasticizer), and Xylene', 'Dimethylformamide and paraffin', 'Dextrose and peptone', 'Diethylene glycol and xylene'],
-          answer: 0,
-          explanation: 'DPX consists of Distrene 80 (synthetic resin), Plasticizer (dibutylphthalate), and Xylene as solvent.'
-        }
-      );
-    }
-
-    if (chapterId.includes('ch18') || chapterId.includes('ch19') || chapterId.includes('ch20') || lowerTitle.includes('special stain') || lowerTitle.includes('pas') || lowerTitle.includes('congo red')) {
-      templates.push(
-        {
-          q: 'What is the oxidizing agent used in Periodic Acid-Schiff (PAS) staining?',
-          options: ['Periodic acid', 'Schiff reagent', 'Chromic acid', 'Picric acid'],
-          answer: 0,
-          explanation: 'Periodic acid oxidizes 1,2-glycol groups in carbohydrates into dialdehydes, which react with Schiff reagent.'
-        },
-        {
-          q: 'Which enzyme is used in diastase-PAS staining to confirm the presence of glycogen?',
-          options: ['Diastase (or salivary alpha-amylase)', 'Pepsin', 'Trypsin', 'Lipase'],
-          answer: 0,
-          explanation: 'Diastase digests glycogen; disappearance of PAS positivity on the digested slide confirms glycogen.'
-        },
-        {
-          q: 'What is the diagnostic hallmark of amyloid when stained with Congo Red under polarizing microscopy?',
-          options: ['Apple-green birefringence', 'Bright yellow fluorescence', 'Blue metachromasia', 'Jet black crystals'],
-          answer: 0,
-          explanation: 'Congo Red molecules align with the beta-pleated sheet of amyloid, displaying characteristic apple-green birefringence.'
-        },
-        {
-          q: 'Masson’s trichrome stain typically stains collagen fibers in which color?',
-          options: ['Green (Light Green) or Blue (Aniline Blue)', 'Bright red', 'Yellow', 'Black'],
-          answer: 0,
-          explanation: 'Masson’s trichrome stains collagen green or blue, muscle fibers red, and nuclei black.'
-        },
-        {
-          q: 'Which special stain is specifically used to demonstrate iron (ferric iron / hemosiderin) deposits?',
-          options: ["Perls' Prussian blue reaction", 'Alcian Blue', 'Masson Fontana', 'Sudan Black B'],
-          answer: 0,
-          explanation: "Perls' reaction uses potassium ferrocyanide in dilute HCl to form ferric ferrocyanide (Prussian blue)."
-        },
-        {
-          q: 'Which silver stain is the gold standard for visualizing fungal walls and Pneumocystis jirovecii in tissue sections?',
-          options: ["Grocott's Methenamine Silver (GMS)", 'Gram stain', 'Mucicarmine', 'Oil Red O'],
-          answer: 0,
-          explanation: 'GMS stains fungal cell wall mucopolysaccharides black with a green light-green counterstain background.'
-        },
-        {
-          q: 'Which stain is used to detect lipid droplets in frozen sections?',
-          options: ['Oil Red O or Sudan Black B', 'Periodic Acid-Schiff', 'Ziehl-Neelsen', 'Von Kossa'],
-          answer: 0,
-          explanation: 'Neutral fats and lipids are demonstrated in cryostat sections using lysochrome dyes like Oil Red O and Sudan Black B.'
-        }
-      );
-    }
-
-    if (chapterId.includes('ch23') || chapterId.includes('ch24') || chapterId.includes('ch25') || lowerTitle.includes('cytology') || lowerTitle.includes('pap') || lowerTitle.includes('fnac')) {
-      templates.push(
-        {
-          q: 'What is the standard fixative for routine diagnostic Papanicolaou (PAP) smears?',
-          options: ['95% ethyl alcohol (or ether-alcohol mixture)', '10% formalin', 'Absolute acetone', 'Normal saline'],
-          answer: 0,
-          explanation: 'Wet fixation in 95% ethanol immediately prevents air-drying artefact in PAP cytology smears.'
-        },
-        {
-          q: 'What are the two cytoplasmic counterstains used in the Papanicolaou staining method?',
-          options: ['OG-6 (Orange G) and EA-36 / EA-50', 'Eosin and Methylene blue', 'Giemsa and Leishman', 'Crystal violet and Safranin'],
-          answer: 0,
-          explanation: 'PAP stain uses OG-6 for keratinized cells and EA (Eosin, Light Green, Bismarck Brown) for superficial and intermediate cells.'
-        },
-        {
-          q: 'In cervical Pap smears, mature superficial squamous cells stain:',
-          options: ['Pink to orange (eosinophilic / orangeophilic)', 'Cyanophilic (blue-green)', 'Black', 'Bright purple'],
-          answer: 0,
-          explanation: 'Keratinized and mature superficial cells stain pink or orange with OG-6/Eosin; intermediate cells stain blue-green.'
-        },
-        {
-          q: 'What needle gauge is commonly used for standard Fine Needle Aspiration Cytology (FNAC)?',
-          options: ['22 to 24 Gauge', '16 Gauge', '18 Gauge', '30 Gauge'],
-          answer: 0,
-          explanation: '22 to 24 gauge needles offer the ideal compromise between adequate cellular yield and minimal hemorrhagic contamination.'
-        },
-        {
-          q: 'Which Romanowsky stain is standardly used for air-dried cytology aspirate smears?',
-          options: ['May-Grünwald-Giemsa (MGG) or Leishman stain', 'Papanicolaou stain', 'H&E', 'Alcian blue'],
-          answer: 0,
-          explanation: 'MGG is performed on rapidly air-dried smears, providing excellent nuclear-cytoplasmic contrast and background matrix detail.'
-        },
-        {
-          q: 'What is the primary advantage of Liquid-Based Cytology (LBC) over conventional smears?',
-          options: ['Uniform thin-layer cell distribution with removal of obscuring blood and mucus', 'Takes zero preparation time', 'Requires no staining dyes', 'Never requires a microscope'],
-          answer: 0,
-          explanation: 'LBC filters debris, blood, and mucus, dispersing cells evenly in a thin monolayer and reducing unsatisfactory smear rates.'
+          q: 'What chemical entity is demonstrated by Perl’s Prussian Blue reaction in histopathology?',
+          options: [
+            'Ferric iron (Fe3+) in hemosiderin, forming insoluble ferric ferrocyanide',
+            'Ferrous iron (Fe2+) in hemoglobin',
+            'Calcium phosphate complexes',
+            'Copper deposits in Wilson’s disease'
+          ],
+          explanation: 'Dilute hydrochloric acid releases ferric iron from hemosiderin, which reacts with potassium ferrocyanide to form Prussian blue (ferric ferrocyanide).'
         }
       );
     }
   }
 
-  // MICROBIOLOGY DOMAINS
+  // =========================================================================
+  // PAPER II — MICROBIOLOGY (Bacteriology, Culture Media, Sterilization, Parasitology, Virology, Mycology)
+  // =========================================================================
   if (paperId === 'microbiology') {
-    if (chapterId.includes('ch1') || lowerTitle.includes('immunity') || lowerTitle.includes('complement') || lowerTitle.includes('hypersensitivity') || lowerTitle.includes('vaccine')) {
+    // Sterilization & Disinfection
+    if (lowerTitle.includes('steril') || lowerTitle.includes('autoclave') || lowerTitle.includes('oven') || chapterId.includes('ch1')) {
       templates.push(
         {
-          q: 'Anaphylaxis and allergic bronchial asthma are classic examples of which hypersensitivity reaction?',
-          options: ['Type I Hypersensitivity (Immediate / IgE-mediated)', 'Type II (Cytotoxic)', 'Type III (Immune complex)', 'Type IV (Delayed-type)'],
-          answer: 0,
-          explanation: 'Type I hypersensitivity involves allergen cross-linking IgE on mast cells, triggering histamine degranulation.'
+          q: 'Which bacterial endospore is the international standard biological indicator for validating steam Autoclave cycles?',
+          options: [
+            'Geobacillus stearothermophilus spores',
+            'Bacillus atrophaeus spores',
+            'Clostridium tetani spores',
+            'Bacillus subtilis var. niger'
+          ],
+          explanation: 'Spore strips of thermophilic Geobacillus stearothermophilus (killed at 121°C in 15 min) validate moist heat autoclaving efficacy.'
         },
         {
-          q: 'Which pathway of the complement system is activated directly by antigen-antibody (IgM or IgG) complexes?',
-          options: ['Classical pathway', 'Alternative pathway', 'Lectin pathway', 'Properdin pathway'],
-          answer: 0,
-          explanation: 'The classical pathway is triggered when C1q binds to the Fc portion of complexed IgM or IgG.'
+          q: 'What biological indicator is utilized to evaluate dry heat sterilization in a Hot Air Oven?',
+          options: [
+            'Bacillus atrophaeus (Bacillus subtilis var. niger) spores',
+            'Geobacillus stearothermophilus',
+            'Clostridium sporogenes',
+            'Pseudomonas aeruginosa'
+          ],
+          explanation: 'Bacillus atrophaeus spores are highly resistant to dry heat and are standard indicators for validating hot air ovens (160°C for 2h).'
         },
         {
-          q: 'Which component represents the central junction and key amplifying enzyme of all complement pathways?',
-          options: ['C3 convertase', 'C1 esterase', 'C9 polymer', 'Factor D'],
-          answer: 0,
-          explanation: 'All three complement activation pathways converge at the generation of C3 convertase to cleave C3 into C3a and C3b.'
+          q: 'What is the standard nominal pore size of membrane filters used to sterilize heat-labile biological fluids (sera, urea, antibiotics)?',
+          options: [
+            '0.22 micron (µm)',
+            '1.20 micron (µm)',
+            '5.00 micron (µm)',
+            '0.01 micron (µm)'
+          ],
+          explanation: 'Cellulose acetate/nitrate membranes with 0.22 µm pore size filter out all vegetative bacteria, including Pseudomonas and Salmonella.'
         },
         {
-          q: 'The tuberculin (Mantoux) test reaction is mediated by which mechanism?',
-          options: ['Type IV Delayed-Type Hypersensitivity (cell-mediated by T cells)', 'Type I IgE response', 'Type II antibody cytotoxicity', 'Arthus reaction'],
-          answer: 0,
-          explanation: 'Mantoux reaction is a classic Type IV hypersensitivity mediated by sensitized CD4+ Th1 cells releasing cytokines.'
-        },
-        {
-          q: 'Administration of anti-tetanus serum (ATS) or anti-rabies immunoglobulin provides:',
-          options: ['Artificial passive immunity', 'Natural active immunity', 'Artificial active immunity', 'Innate non-specific immunity'],
-          answer: 0,
-          explanation: 'Preformed antibodies administered to a recipient confer immediate, short-lived artificial passive immunity.'
-        },
-        {
-          q: 'Which vaccine is a live attenuated bacterial vaccine?',
-          options: ['BCG (Bacillus Calmette-Guérin)', 'Tetanus toxoid', 'Hepatitis B vaccine', 'Rabies vaccine'],
-          answer: 0,
-          explanation: 'BCG is a live attenuated strain of Mycobacterium bovis used to protect against tuberculosis.'
-        },
-        {
-          q: 'What is the major immunoglobulin found in mucosal secretions, saliva, colostrum, and tears?',
-          options: ['Secretory IgA', 'IgG', 'IgM', 'IgE'],
-          answer: 0,
-          explanation: 'Dimeric secretory IgA provides primary immune defense across external mucosal surfaces.'
+          q: 'Activated 2% alkaline Glutaraldehyde (Cidex) requires what contact duration to achieve true sporicidal sterilization (cold sterilization)?',
+          options: [
+            '10 hours of continuous immersion',
+            '20 minutes of immersion',
+            '2 hours of immersion',
+            '1 minute of wipe-down'
+          ],
+          explanation: '2% buffered glutaraldehyde kills vegetative bacteria in 10–20 minutes, but requires 10 hours of immersion to destroy bacterial endospores.'
         }
       );
     }
 
-    if (chapterId.includes('ch2') || chapterId.includes('ch3') || chapterId.includes('ch4') || lowerTitle.includes('parasit') || lowerTitle.includes('entamoeba') || lowerTitle.includes('malaria') || lowerTitle.includes('helminth')) {
+    // Culture Media & Bacterial Identification
+    if (lowerTitle.includes('media') || lowerTitle.includes('culture') || lowerTitle.includes('gram') || lowerTitle.includes('biochemical') || chapterId.includes('ch2')) {
       templates.push(
         {
-          q: 'How many nuclei are characteristically seen in a mature, infective cyst of Entamoeba histolytica?',
-          options: ['4 nuclei (quadrinucleate cyst)', '1 nucleus', '2 nuclei', '8 nuclei'],
-          answer: 0,
-          explanation: 'The mature infective cyst of Entamoeba histolytica contains 4 nuclei and blunt-ended chromatoid bars.'
+          q: 'Chocolate agar is prepared by heating blood agar to 80°C to release which two essential growth factors?',
+          options: [
+            'Factor X (Hemin) and Factor V (NAD)',
+            'Factor VIII and Factor IX',
+            'Thiamine and Biotin',
+            'Calcium and Magnesium ions'
+          ],
+          explanation: 'Gentle lysis of red cells at 80°C releases Factor X (heat-stable hemin) and Factor V (heat-labile NAD), required for Haemophilus and Neisseria.'
         },
         {
-          q: 'The presence of ingested red blood cells (erythrophagocytosis) in a motile trophozoite is diagnostic of:',
-          options: ['Entamoeba histolytica', 'Entamoeba coli', 'Giardia lamblia', 'Balantidium coli'],
-          answer: 0,
-          explanation: 'Trophozoites of pathogenic Entamoeba histolytica actively ingest RBCs in tissue invasive amoebiasis.'
+          q: 'What is the selective and differential mechanism of MacConkey Agar?',
+          options: [
+            'Bile salts and crystal violet inhibit Gram-positive bacteria; neutral red indicates lactose fermentation by turning pink',
+            'Sodium azide inhibits Gram-negative bacilli; bromothymol blue indicates sucrose fermentation',
+            'Malachite green inhibits non-mycobacteria; phenol red detects urea',
+            'Tellurite selects for Corynebacterium by turning black'
+          ],
+          explanation: 'Bile salts/crystal violet inhibit Gram-positive microbes; lactose fermenters produce acid that turns neutral red indicator bright pink.'
         },
         {
-          q: 'Falling-leaf motility in saline wet mount stool examination is characteristic of:',
-          options: ['Giardia lamblia trophozoites', 'Trichomonas vaginalis', 'Entamoeba histolytica', 'Vibrio cholerae'],
-          answer: 0,
-          explanation: 'Flagellated pear-shaped Giardia lamblia trophozoites display classic "falling-leaf" motility.'
+          q: 'Which selective medium produces jet-black colonies with a distinct metallic sheen for Salmonella enterica serovar Typhi?',
+          options: [
+            'Wilson and Blair’s Bismuth Sulfite Agar',
+            'TCBS Agar',
+            'MacConkey Agar',
+            'Lowenstein-Jensen Medium'
+          ],
+          explanation: 'Bismuth sulfite agar reduces bismuth in the presence of H2S produced by Salmonella Typhi, precipitating black bismuth sulfide with metallic sheen.'
         },
         {
-          q: 'What is the definitive host of Plasmodium parasites causing human malaria?',
-          options: ['Female Anopheles mosquito', 'Male Anopheles mosquito', 'Human being', 'Culex mosquito'],
-          answer: 0,
-          explanation: 'The female Anopheles mosquito is the definitive host because sexual reproduction (sporogony) takes place in it.'
+          q: 'In the Kovac’s reagent used for the Indole test, what chemical detects indole produced from tryptophan?',
+          options: [
+            'para-Dimethylaminobenzaldehyde in isoamyl alcohol and concentrated HCl',
+            'Alpha-naphthol and 40% potassium hydroxide',
+            'Sulfanilic acid and alpha-naphthylamine',
+            'Bromothymol blue and sodium citrate'
+          ],
+          explanation: 'Tryptophanase degrades tryptophan to indole; p-dimethylaminobenzaldehyde reacts with indole to form a cherry-red rosindole dye layer.'
         },
         {
-          q: 'Crescent or banana-shaped gametocytes in peripheral blood smear are diagnostic of:',
-          options: ['Plasmodium falciparum', 'Plasmodium vivax', 'Plasmodium malariae', 'Plasmodium ovale'],
-          answer: 0,
-          explanation: 'P. falciparum characteristically forms crescentic, banana-shaped gametocytes in peripheral blood.'
+          q: 'What reagent is used in the Cytochrome Oxidase test for identifying Pseudomonas aeruginosa?',
+          options: [
+            '1% aqueous Tetramethyl-para-phenylenediamine dihydrochloride (Kovac’s oxidase reagent)',
+            '3% Hydrogen peroxide solution',
+            'Sulfosalicylic acid solution',
+            'Diazo reagent'
+          ],
+          explanation: 'Cytochrome c oxidase oxidizes tetramethyl-p-phenylenediamine dihydrochloride to deep indophenol purple within 10–15 seconds.'
         },
         {
-          q: 'Leishman-Donovan (LD) bodies demonstrated in bone marrow or splenic aspirates represent which morphological form?',
-          options: ['Amastigote form', 'Promastigote form', 'Epimastigote form', 'Trypomastigote form'],
-          answer: 0,
-          explanation: 'LD bodies are intracellular amastigotes of Leishmania donovani inside reticuloendothelial macrophages.'
-        },
-        {
-          q: 'What is the intermediate host of Taenia solium (pork tapeworm)?',
-          options: ['Pig (swine)', 'Cow (cattle)', 'Sheep', 'Snail'],
-          answer: 0,
-          explanation: 'Pig is the intermediate host harboring Cysticercus cellulosae, while humans are definitive hosts.'
-        },
-        {
-          q: 'Which helminth egg has distinctive bipolar plugs and a barrel shape?',
-          options: ['Trichuris trichiura (whipworm)', 'Ascaris lumbricoides', 'Enterobius vermicularis', 'Ancylostoma duodenale'],
-          answer: 0,
-          explanation: 'Trichuris trichiura eggs are barrel-shaped with clear mucoid bipolar plugs.'
-        },
-        {
-          q: 'D-shaped (plano-convex) eggs collected via cellophane tape (NIH swab) from the perianal region indicate:',
-          options: ['Enterobius vermicularis (pinworm / threadworm)', 'Ascaris lumbricoides', 'Taenia saginata', 'Strongyloides'],
-          answer: 0,
-          explanation: 'Female Enterobius migrates to the perianal skin to deposit characteristic asymmetric plano-convex eggs.'
-        },
-        {
-          q: 'Nocturnal periodicity in peripheral blood collection (10 PM to 2 AM) is required to detect microfilariae of:',
-          options: ['Wuchereria bancrofti', 'Loa loa', 'Onchocerca volvulus', 'Mansonella perstans'],
-          answer: 0,
-          explanation: 'Microfilariae of Wuchereria bancrofti appear in highest concentration in peripheral blood at night.'
+          q: 'What are the CLSI standardized parameters for the Kirby-Bauer disk diffusion susceptibility test?',
+          options: [
+            'Mueller-Hinton Agar, 4 mm depth, pH 7.2–7.4, 0.5 McFarland turbidity standard',
+            'Nutrient Agar, 10 mm depth, 2.0 McFarland standard',
+            'Blood Agar, 2 mm depth, no turbidity standardization',
+            'Brain Heart Infusion, 6 mm depth, pH 6.0'
+          ],
+          explanation: 'MHA poured to 4 mm depth (preventing false resistance/susceptibility) at pH 7.2–7.4 with 0.5 McFarland (1.5 x 10^8 CFU/mL) is strictly standard.'
         }
       );
     }
 
-    if (chapterId.includes('ch5') || chapterId.includes('ch6') || chapterId.includes('ch7') || lowerTitle.includes('virology') || lowerTitle.includes('hepatitis') || lowerTitle.includes('hiv') || lowerTitle.includes('virus')) {
+    // Parasitology & Mycology
+    if (lowerTitle.includes('parasit') || lowerTitle.includes('stool') || lowerTitle.includes('fung') || lowerTitle.includes('malaria') || chapterId.includes('ch3') || chapterId.includes('ch5')) {
       templates.push(
         {
-          q: 'Which hepatitis virus is a DNA virus belonging to the Hepadnaviridae family?',
-          options: ['Hepatitis B virus (HBV)', 'Hepatitis A virus (HAV)', 'Hepatitis C virus (HCV)', 'Hepatitis E virus (HEV)'],
-          answer: 0,
-          explanation: 'HBV is the only DNA hepatitis virus; HAV, HCV, HDV, and HEV are all RNA viruses.'
+          q: 'Which morphological feature distinguishes the mature cyst of Entamoeba histolytica from Entamoeba coli?',
+          options: [
+            'E. histolytica has maximum 4 nuclei with central karyosome and rounded chromidial bars; E. coli has up to 8 nuclei with splintered ends',
+            'E. histolytica cysts have 16 nuclei',
+            'E. histolytica lacks chromidial bars entirely',
+            'E. histolytica has eccentric karyosome and no chromatoid bodies'
+          ],
+          explanation: 'Mature E. histolytica cysts possess 1–4 spherical nuclei with central compact karyosome and thick, blunt-ended cigar-shaped chromidial bars.'
         },
         {
-          q: 'What is the first serological marker to appear in the serum of an HBV-infected individual?',
-          options: ['HBsAg (Australia antigen)', 'Anti-HBs', 'HBeAg', 'Anti-HBc IgM'],
-          answer: 0,
-          explanation: 'HBsAg is detectable in blood 2 to 6 weeks before symptoms and indicates active infection.'
+          q: 'In a peripheral blood smear, observing multiple delicate ring forms, appliqué (accolé) marginal forms, and banana-shaped gametocytes diagnostic of:',
+          options: [
+            'Plasmodium falciparum',
+            'Plasmodium vivax',
+            'Plasmodium malariae',
+            'Plasmodium ovale'
+          ],
+          explanation: 'Plasmodium falciparum characteristically exhibits multiple rings per RBC, appliqué forms at the RBC periphery, and crescent/banana-shaped gametocytes.'
         },
         {
-          q: 'The presence of which antibody indicates successful immunization against Hepatitis B?',
-          options: ['Anti-HBs (alone, without Anti-HBc)', 'Anti-HBc IgM', 'Anti-HBe', 'HBsAg'],
-          answer: 0,
-          explanation: 'Isolated anti-HBs IgG develops after recombinant hepatitis B vaccination, conferring long-term protection.'
+          q: 'What is the biological role of 10% to 20% Potassium Hydroxide (KOH) in direct microscopic fungal diagnosis?',
+          options: [
+            'Digests host keratin, cellular debris, and proteinaceous exudate while preserving fungal chitinous cell walls intact',
+            'Stains fungal mycelium bright fluorescent green',
+            'Kills bacteria and fungi simultaneously',
+            'Converts yeast cells into chlamydospores'
+          ],
+          explanation: 'KOH clears opaque keratinaceous nail, skin, or hair scales without digesting fungal glucans and chitin, making fungal hyphae readily visible.'
         },
         {
-          q: 'Which envelope glycoprotein of HIV binds specifically to the CD4 receptor on helper T cells?',
-          options: ['gp120', 'gp41', 'p24', 'Reverse transcriptase'],
-          answer: 0,
-          explanation: 'HIV surface glycoprotein gp120 attaches to the host CD4 molecule, assisted by chemokine coreceptors (CCR5/CXCR4).'
+          q: 'In Lactophenol Cotton Blue (LPCB) fungal mount, what specific function does Phenol perform?',
+          options: [
+            'Acts as a rapid fungicidal agent to inactivate living fungal elements safely',
+            'Stains the chitinous cell wall dark blue',
+            'Prevents the preparation from drying out (humectant)',
+            'Clears tissue keratin like KOH'
+          ],
+          explanation: 'Phenol kills fungal organisms; lactic acid preserves fungal structure; glycerol prevents evaporation; and cotton blue stains fungal chitin.'
         },
         {
-          q: 'Negri bodies in neuronal cytoplasm on Seller’s stain are pathognomonic of:',
-          options: ['Rabies', 'Poliomyelitis', 'Herpes simplex encephalitis', 'Measles'],
-          answer: 0,
-          explanation: 'Negri bodies are eosinophilic intracytoplasmic inclusions found in Ammon’s horn of hippocampus and Purkinje cells in rabies.'
-        },
-        {
-          q: 'Which diagnostic test detects acute dengue virus infection on Day 1 to 5 of fever before antibodies form?',
-          options: ['Dengue NS1 Antigen ELISA / ICT', 'Dengue IgG ELISA', 'Widal test', 'VDRL test'],
-          answer: 0,
-          explanation: 'NS1 non-structural protein antigen is secreted into bloodstream during early acute viremia in dengue.'
+          q: 'The Germ Tube test (Reynolds-Braude phenomenon) is a rapid diagnostic test for presumptive identification of:',
+          options: [
+            'Candida albicans',
+            'Cryptococcus neoformans',
+            'Aspergillus fumigatus',
+            'Histoplasma capsulatum'
+          ],
+          explanation: 'Candida albicans forms true parallel germ tubes without constriction at the mother yeast cell within 2–3 hours in human serum at 37°C.'
         }
       );
     }
 
-    if (chapterId.includes('ch9') || chapterId.includes('ch10') || lowerTitle.includes('mycology') || lowerTitle.includes('fungi') || lowerTitle.includes('candida')) {
+    // Virology & Serology
+    if (lowerTitle.includes('virus') || lowerTitle.includes('hiv') || lowerTitle.includes('hepatitis') || lowerTitle.includes('serolog') || chapterId.includes('ch4')) {
       templates.push(
         {
-          q: 'What is the role of 10% to 20% potassium hydroxide (KOH) in fungal wet mount preparations?',
-          options: ['Clears and dissolves host keratin and cellular debris to highlight fungal hyphae', 'Stains fungal cell walls blue', 'Acts as a nutrient culture media', 'Kills bacteria exclusively'],
-          answer: 0,
-          explanation: 'KOH dissolves background keratinous tissue (skin, hair, nails) without damaging chitinous fungal walls.'
+          q: 'In acute Hepatitis B infection, which serological marker is typically the sole detectable marker during the "window period"?',
+          options: [
+            'IgM Anti-HBc (anti-Hepatitis B core antibody IgM)',
+            'HBsAg',
+            'Anti-HBs antibody',
+            'HBeAg'
+          ],
+          explanation: 'The window period is the gap between HBsAg disappearance and anti-HBs appearance; IgM anti-HBc is the only positive diagnostic serological marker.'
         },
         {
-          q: 'What is the standard culture medium used for routine fungal isolation in the laboratory?',
-          options: ["Sabouraud Dextrose Agar (SDA) at pH 5.6", "MacConkey Agar", "Blood Agar at pH 8.0", "Lowenstein-Jensen medium"],
-          answer: 0,
-          explanation: 'SDA with its acidic pH (5.6) and high dextrose content inhibits bacteria while encouraging fungal growth.'
+          q: 'Fourth-generation HIV diagnostic screening ELISA assays detect which viral component in addition to anti-HIV antibodies?',
+          options: [
+            'HIV-1 p24 capsid core antigen',
+            'gp120 envelope glycoprotein',
+            'Reverse transcriptase enzyme',
+            'Viral RNA genome directly'
+          ],
+          explanation: '4th generation "combo" assays detect both HIV-1/2 antibodies and free HIV p24 antigen, shortening the seroconversion window to ~14 days.'
         },
         {
-          q: 'Which rapid presumptive test distinguishes Candida albicans from other Candida species within 2 hours in human serum at 37°C?',
-          options: ['Germ tube test (Reynolds-Braude phenomenon)', 'Urease test', 'Sugar fermentation test', 'Coagulase test'],
-          answer: 0,
-          explanation: 'Candida albicans sprouts a true germ tube without constriction at the mother blastoconidium within 2–3 hours.'
-        },
-        {
-          q: 'India ink or Nigrosin negative staining of CSF is classically used to detect:',
-          options: ['Cryptococcus neoformans encapsulated yeast', 'Candida albicans', 'Aspergillus fumigatus', 'Histoplasma capsulatum'],
-          answer: 0,
-          explanation: 'The wide mucopolysaccharide capsule of Cryptococcus neoformans excludes ink particles, showing a clear halo.'
-        },
-        {
-          q: 'What stain is routinely used to prepare slide mounts from fungal colonies?',
-          options: ['Lactophenol Cotton Blue (LCB)', 'Gram stain', 'Leishman stain', 'Field stain'],
-          answer: 0,
-          explanation: 'LCB contains phenol (kills fungus), lactic acid (preserves structures), and cotton blue (stains chitin).'
-        }
-      );
-    }
-
-    if (chapterId.includes('ch11') || chapterId.includes('ch12') || lowerTitle.includes('widal') || lowerTitle.includes('vdrl') || lowerTitle.includes('skin test') || lowerTitle.includes('elisa') || lowerTitle.includes('mantoux')) {
-      templates.push(
-        {
-          q: 'In the Widal tube agglutination test, a rising titer of which antibodies is diagnostic of enteric (typhoid) fever?',
-          options: ['Anti-O (somatic) and Anti-H (flagellar) antibodies against Salmonella', 'Anti-Vi antibodies alone', 'Heterophile antibodies', 'Cold agglutinins'],
-          answer: 0,
-          explanation: 'Widal test measures antibodies against Salmonella Typhi O and H antigens and S. Paratyphi AH and BH antigens.'
-        },
-        {
-          q: 'The VDRL test for syphilis uses an antigen composed of:',
-          options: ['Cardiolipin, lecithin, and cholesterol', 'Treponema pallidum live spirochetes', 'Sheep red blood cells', 'Streptococcal hemolysin'],
-          answer: 0,
-          explanation: 'VDRL is a non-treponemal flocculation test using cardiolipin, cholesterol, and lecithin.'
-        },
-        {
-          q: 'What type of antigen-antibody reaction occurs in the VDRL test?',
-          options: ['Microscopic slide flocculation', 'Tube hemagglutination', 'Complement fixation', 'Gel precipitation'],
-          answer: 0,
-          explanation: 'VDRL utilizes a slide flocculation reaction read under low power (10x) light microscopy.'
-        },
-        {
-          q: 'The Mantoux tuberculin test is read after how many hours following intradermal PPD injection?',
-          options: ['48 to 72 hours', '12 to 24 hours', '1 to 2 hours', '1 week'],
-          answer: 0,
-          explanation: 'Mantoux reaction is a delayed-type hypersensitivity measured by transverse diameter of induration at 48–72 hours.'
-        },
-        {
-          q: 'Casoni’s intradermal skin test was historically used to aid diagnosis of:',
-          options: ['Hydatid cyst disease (Echinococcus granulosus)', 'Tuberculosis', 'Leprosy', 'Syphilis'],
-          answer: 0,
-          explanation: 'Casoni’s test introduced sterile hydatid fluid intradermally to produce an immediate wheal-and-flare reaction.'
-        },
-        {
-          q: 'In an indirect ELISA, what is the enzyme-conjugated reagent that is added in the second incubation step?',
-          options: ['Enzyme-labeled anti-human immunoglobulin antibody', 'Unlabeled patient serum', 'Substrate chromogen mixture', 'Coating antigen'],
-          answer: 0,
-          explanation: 'Indirect ELISA uses an anti-human globulin secondary antibody linked to horseradish peroxidase (HRP) or alkaline phosphatase.'
+          q: 'What causes the "Prozone phenomenon" in serological agglutination assays?',
+          options: [
+            'High antibody excess relative to antigen concentration preventing cross-linked lattice formation',
+            'Antigen excess preventing antibody binding',
+            'Depletion of complement components',
+            'High electrolyte concentration in saline'
+          ],
+          explanation: 'In the prozone, excess free antibody coats all available antigenic epitopes without forming bridging lattices, giving a false-negative agglutination result.'
         }
       );
     }
   }
 
-  // BIOCHEMISTRY DOMAINS
+  // =========================================================================
+  // PAPER III — BIOCHEMISTRY (Clinical Enzymology, Carbohydrates, LFT, RFT, ABG, Quality Control)
+  // =========================================================================
   if (paperId === 'biochemistry') {
-    if (chapterId.includes('ch1') || chapterId.includes('ch2') || lowerTitle.includes('glucose') || lowerTitle.includes('diabetes') || lowerTitle.includes('hba1c')) {
+    // Carbohydrate & Diabetes
+    if (lowerTitle.includes('glucose') || lowerTitle.includes('diabet') || lowerTitle.includes('gtt') || lowerTitle.includes('hba1c') || chapterId.includes('ch1')) {
       templates.push(
         {
-          q: 'What is the principal enzymatic method used for routine blood glucose estimation?',
-          options: ['GOD-POD (Glucose Oxidase - Peroxidase) method', 'Hexokinase method', 'Folin-Wu copper reduction method', 'Nelson-Somogyi method'],
-          answer: 0,
-          explanation: 'GOD oxidizes glucose to gluconic acid and H2O2; POD then couples H2O2 with 4-aminophenazone to form a red quinoneimine dye.'
+          q: 'In the enzymatic GOD-POD method for blood glucose determination, which chromogenic couple produces the pink/red quinoneimine dye?',
+          options: [
+            '4-Aminophenazone (4-aminoantipyrine) and Phenol',
+            'Sodium nitroprusside and glycine',
+            'Alkaline picrate and sodium hydroxide',
+            'Bromocresol green and succinate buffer'
+          ],
+          explanation: 'Glucose oxidase generates H2O2; Peroxidase couples H2O2 with 4-aminophenazone and phenol to produce red quinoneimine dye measured at 505 nm.'
         },
         {
-          q: 'What is the normal fasting plasma glucose reference range in a healthy adult according to ADA guidelines?',
-          options: ['70 to 99 mg/dL', '126 to 140 mg/dL', '140 to 200 mg/dL', '40 to 60 mg/dL'],
-          answer: 0,
-          explanation: 'Normal fasting plasma glucose is 70–99 mg/dL; 100–125 mg/dL is impaired fasting glucose; ≥126 mg/dL indicates diabetes.'
+          q: 'Which enzymatic methodology is recognized as the primary reference standard for serum glucose measurement?',
+          options: [
+            'Hexokinase / Glucose-6-Phosphate Dehydrogenase method measuring NADPH at 340 nm',
+            'GOD-POD colorimetric method',
+            'Orthotoluidine condensation method',
+            'Folin-Wu phosphomolybdic acid method'
+          ],
+          explanation: 'The Hexokinase method is the definitive reference method due to its absolute specificity for glucose and stoichiometric NADPH production at 340 nm.'
         },
         {
-          q: 'Which anticoagulant/glycolysis inhibitor combination is used in the gray-top vacutainer tube for blood glucose estimation?',
-          options: ['Sodium fluoride with potassium oxalate', 'K2 EDTA', 'Sodium heparin', 'Trisodium citrate'],
-          answer: 0,
-          explanation: 'Sodium fluoride inhibits enolase enzyme to arrest glycolysis, preserving blood glucose concentration.'
+          q: 'According to WHO guidelines for the standard 75g Oral Glucose Tolerance Test (OGTT), what 2-hour venous plasma value confirms Diabetes Mellitus?',
+          options: [
+            'Venous plasma glucose ≥ 200 mg/dL (11.1 mmol/L)',
+            'Venous plasma glucose 140 to 199 mg/dL',
+            'Venous plasma glucose 100 to 125 mg/dL',
+            'Venous plasma glucose < 140 mg/dL'
+          ],
+          explanation: 'A 2-hour post-load glucose ≥ 200 mg/dL (or fasting plasma glucose ≥ 126 mg/dL) establishes the diagnostic criteria for Diabetes Mellitus.'
         },
         {
-          q: 'Glycated hemoglobin (HbA1c) reflects the average blood glucose level over what period?',
-          options: ['Past 2 to 3 months (8 to 12 weeks)', 'Past 24 hours', 'Past 1 to 2 weeks', 'Past 1 year'],
-          answer: 0,
-          explanation: 'HbA1c is formed by non-enzymatic glycation of hemoglobin and reflects the lifespan of red blood cells (approx. 120 days).'
-        },
-        {
-          q: 'An HbA1c level of what percentage is diagnostic for Diabetes Mellitus as per ADA criteria?',
-          options: ['≥ 6.5%', '≥ 5.7%', '≥ 4.5%', '≥ 8.0%'],
-          answer: 0,
-          explanation: 'An HbA1c value ≥ 6.5% on standard certified assay confirms diabetes mellitus.'
-        },
-        {
-          q: 'In an Oral Glucose Tolerance Test (OGTT) for non-pregnant adults, what glucose load is administered?',
-          options: ['75 grams of anhydrous glucose dissolved in water', '50 grams', '100 grams', '25 grams'],
-          answer: 0,
-          explanation: 'The standard WHO/ADA diagnostic OGTT requires ingestion of 75 grams of anhydrous glucose in 250–300 mL water.'
-        },
-        {
-          q: 'Which hormone is the ONLY major hypoglycemic hormone that lowers blood glucose levels?',
-          options: ['Insulin', 'Glucagon', 'Cortisol', 'Epinephrine'],
-          answer: 0,
-          explanation: 'Insulin produced by pancreatic beta cells is the sole physiological hormone that directly lowers blood glucose.'
+          q: 'What chemical structure is formed in the synthesis of Glycated Hemoglobin (HbA1c)?',
+          options: [
+            'Non-enzymatic ketoamine condensation between glucose and the N-terminal valine of hemoglobin beta chains',
+            'Enzymatic phosphorylation of alpha-globin chains',
+            'Reversible Schiff base linkage with lysine residues',
+            'Oxidation of heme iron to methemoglobin'
+          ],
+          explanation: 'Glucose reacts non-enzymatically with the N-terminal valine of the beta-globin chain, undergoing an Amadori rearrangement to stable HbA1c.'
         }
       );
     }
 
-    if (chapterId.includes('ch3') || lowerTitle.includes('lipoprotein') || lowerTitle.includes('cholesterol') || lowerTitle.includes('lipid')) {
+    // Liver Function & Enzymology
+    if (lowerTitle.includes('lft') || lowerTitle.includes('liver') || lowerTitle.includes('bilirubin') || lowerTitle.includes('enzyme') || chapterId.includes('ch2')) {
       templates.push(
         {
-          q: 'Which lipoprotein is responsible for "reverse cholesterol transport" from peripheral tissues to the liver?',
-          options: ['HDL (High-Density Lipoprotein)', 'LDL (Low-Density Lipoprotein)', 'VLDL (Very Low-Density Lipoprotein)', 'Chylomicrons'],
-          answer: 0,
-          explanation: 'HDL picks up excess cholesterol from cells and returns it to the liver for excretion as bile acids.'
+          q: 'In the Malloy-Evelyn or Jendrassik-Grof bilirubin assay, what chemical accelerator is required to measure unconjugated (indirect) bilirubin?',
+          options: [
+            'Caffeine-sodium benzoate or methanol',
+            'Sodium hypochlorite',
+            'Trichloroacetic acid',
+            'Glacial acetic acid'
+          ],
+          explanation: 'Unconjugated bilirubin is non-covalently bound to albumin and hydrophobic; caffeine-benzoate or methanol dissociates it to react with diazo reagent.'
         },
         {
-          q: 'Which lipoprotein is considered the primary atherogenic "bad cholesterol"?',
-          options: ['LDL', 'HDL', 'Chylomicrons', 'Albumin'],
-          answer: 0,
-          explanation: 'Elevated LDL penetrates vascular endothelium, undergoes oxidation, and forms atherosclerotic plaques.'
+          q: 'Which aminotransferase enzyme is strictly localized to the hepatocellular cytoplasm and exhibits higher liver specificity?',
+          options: [
+            'Alanine Aminotransferase (ALT / SGPT)',
+            'Aspartate Aminotransferase (AST / SGOT)',
+            'Lactate Dehydrogenase (LDH-1)',
+            'Creatine Kinase (CK-MB)'
+          ],
+          explanation: 'ALT is purely cytoplasmic and predominantly found in hepatocytes; AST has both cytoplasmic and mitochondrial isoenzymes and is abundant in heart/muscle.'
         },
         {
-          q: 'According to the Friedewald formula, how is LDL cholesterol calculated if triglycerides are < 400 mg/dL?',
-          options: ['LDL = Total Cholesterol - [HDL + (Triglycerides / 5)]', 'LDL = Total Cholesterol + HDL', 'LDL = Triglycerides - (HDL / 5)', 'LDL = Total Cholesterol / 2'],
-          answer: 0,
-          explanation: 'Friedewald formula: LDL = Total Cholesterol - HDL - (TG / 5). VLDL is estimated as TG / 5.'
+          q: 'Serum Alkaline Phosphatase (ALP) activity is measured in clinical laboratories using which substrate at an optimum alkaline pH of 10.5?',
+          options: [
+            'para-Nitrophenyl phosphate (pNPP)',
+            'Phenolphthalein monophosphate',
+            'Alpha-naphthyl phosphate',
+            'Glycerophosphate'
+          ],
+          explanation: 'Bessey-Lowry-Brock method hydrolyzes colorless p-nitrophenyl phosphate into yellow p-nitrophenol at alkaline pH 10.5, measured at 405 nm.'
         },
         {
-          q: 'What is the minimum fasting duration recommended prior to blood collection for a complete lipid profile?',
-          options: ['10 to 12 hours fasting', '2 hours fasting', '24 hours fasting', 'No fasting required'],
-          answer: 0,
-          explanation: 'A 10–12 hour fast ensures clearance of dietary chylomicrons for accurate baseline triglyceride measurement.'
+          q: 'In the Biuret reaction for total serum protein estimation, what is the minimum molecular requirement for color development?',
+          options: [
+            'Presence of at least two peptide bonds (-CONH-) to chelate cupric (Cu2+) ions in alkaline solution',
+            'Presence of free amino acid valine',
+            'Aromatic amino acids tyrosine and tryptophan',
+            'Intact disulfide bridges'
+          ],
+          explanation: 'Cupric ions in alkaline Biuret reagent coordinate with four nitrogen atoms from at least two adjacent peptide bonds to form a violet complex measured at 540 nm.'
         },
         {
-          q: 'The CHOD-PAP enzymatic method is used in the laboratory to determine:',
-          options: ['Total serum cholesterol', 'Serum bilirubin', 'Serum creatinine', 'Blood urea nitrogen'],
-          answer: 0,
-          explanation: 'CHOD-PAP utilizes Cholesterol Esterase, Cholesterol Oxidase (CHOD), and Peroxidase (PAP).'
+          q: 'What specific dye is universally employed in automated clinical analyzers for the selective determination of serum Albumin at pH 4.2?',
+          options: [
+            'Bromocresol Green (BCG)',
+            'Bromothymol Blue',
+            'Methyl Orange',
+            'Coomassie Brilliant Blue'
+          ],
+          explanation: 'At pH 4.2, albumin carries a net positive charge and selectively binds the anionic BCG dye to produce a green-blue complex measured at 628 nm.'
         }
       );
     }
 
-    if (chapterId.includes('ch4') || lowerTitle.includes('liver') || lowerTitle.includes('lft') || lowerTitle.includes('bilirubin')) {
+    // Renal Function & Clearance
+    if (lowerTitle.includes('rft') || lowerTitle.includes('kidney') || lowerTitle.includes('creatinine') || lowerTitle.includes('urea') || chapterId.includes('ch3')) {
       templates.push(
         {
-          q: 'Which chemical reagent is used in the classic van den Bergh reaction for bilirubin estimation?',
-          options: ['Diazo reagent (Sulfanilic acid + Sodium nitrite)', 'Biuret reagent', 'Berthelot reagent', "Jaffe's picric acid"],
-          answer: 0,
-          explanation: 'Van den Bergh reaction couples bilirubin with diazotized sulfanilic acid to form pink azobilirubin.'
+          q: 'What is the chemical basis of the classic Jaffe reaction for estimating serum and urinary creatinine?',
+          options: [
+            'Creatinine reacts with picric acid in an alkaline medium to form an orange-red creatinine-picrate tautomer',
+            'Coupling of creatinine with diazonium salt',
+            'Oxidation of creatinine by ferricyanide',
+            'Condensation with diacetyl monoxime'
+          ],
+          explanation: 'In alkaline solution, creatinine and picric acid form a red-orange Janovski complex measured spectrophotometrically between 500 and 520 nm.'
         },
         {
-          q: 'In the van den Bergh reaction, conjugated (direct) bilirubin reacts:',
-          options: ['Immediately without adding an accelerator (direct positive)', 'Only after adding alcohol / caffeine', 'Never reacts with diazo reagent', 'Forms a black precipitate'],
-          answer: 0,
-          explanation: 'Conjugated bilirubin is water-soluble and reacts directly; unconjugated requires caffeine-benzoate or alcohol.'
+          q: 'What is the standard formula for calculating Endogenous Creatinine Clearance (GFR)?',
+          options: [
+            'Clearance (mL/min) = (Urine Creatinine [mg/dL] x Urine Volume [mL/min]) / Plasma Creatinine [mg/dL]',
+            'Clearance = (Plasma Creatinine x Urine Volume) / Urine Creatinine',
+            'Clearance = (Urine Creatinine x Plasma Creatinine) / 1440',
+            'Clearance = Blood Urea Nitrogen / Serum Creatinine'
+          ],
+          explanation: 'Creatinine clearance = (U x V) / P, where U is urine creatinine concentration, V is urine flow rate in mL/min, and P is plasma creatinine.'
         },
         {
-          q: 'Which liver enzyme is most specific for hepatocellular injury because it is primarily located in liver cytoplasm?',
-          options: ['ALT (Alanine transaminase / SGPT)', 'AST (Aspartate transaminase / SGOT)', 'Alkaline Phosphatase (ALP)', 'Amylase'],
-          answer: 0,
-          explanation: 'ALT is primarily localized in hepatocytes, whereas AST is present in high amounts in heart and muscle.'
-        },
-        {
-          q: 'A disproportionate marked elevation of Alkaline Phosphatase (ALP) and GGT with high direct bilirubin indicates:',
-          options: ['Obstructive / Cholestatic jaundice', 'Hemolytic jaundice', 'Gilbert syndrome', 'Crigler-Najjar syndrome'],
-          answer: 0,
-          explanation: 'Biliary canalicular enzymes ALP and GGT rise sharply in extrahepatic or intrahepatic biliary obstruction.'
-        },
-        {
-          q: 'What is the normal reference range for Total Serum Bilirubin in adults?',
-          options: ['0.2 to 1.2 mg/dL', '3.0 to 5.0 mg/dL', '10.0 to 15.0 mg/dL', '20 mg/dL'],
-          answer: 0,
-          explanation: 'Normal total serum bilirubin is 0.2 to 1.2 mg/dL, with direct bilirubin typically < 0.3 mg/dL.'
-        },
-        {
-          q: 'What is the standard method used for total serum protein estimation in clinical chemistry?',
-          options: ['Biuret method (alkaline copper tartrate)', 'Bromocresol Green (BCG)', 'Folin-Ciocalteu reagent', 'Nesslerization'],
-          answer: 0,
-          explanation: 'Biuret reaction detects peptide bonds reacting with cupric ions in alkaline medium to form a purple coordination complex.'
-        },
-        {
-          q: 'Bromocresol Green (BCG) dye-binding method is specifically used to measure:',
-          options: ['Serum Albumin', 'Serum Globulin', 'Serum Fibrinogen', 'Total Protein'],
-          answer: 0,
-          explanation: 'At pH 4.2, albumin binds BCG selectively, turning yellow dye into green measured at 630 nm.'
+          q: 'In the enzymatic UV Berthelot or GLDH method for Blood Urea Nitrogen (BUN), what primary enzyme catalyzes the hydrolysis of urea?',
+          options: [
+            'Urease',
+            'Glutamate dehydrogenase',
+            'Uricase',
+            'Arginase'
+          ],
+          explanation: 'Urease catalyzes the hydrolysis of urea into ammonia and carbon dioxide; ammonia is then quantified by the Berthelot color reaction or GLDH consumption of NADH.'
         }
       );
     }
 
-    if (chapterId.includes('ch5') || lowerTitle.includes('renal') || lowerTitle.includes('rft') || lowerTitle.includes('creatinine') || lowerTitle.includes('urea')) {
+    // Electrolytes & Quality Assurance
+    if (lowerTitle.includes('electrolyt') || lowerTitle.includes('qc') || lowerTitle.includes('westgard') || lowerTitle.includes('abg') || chapterId.includes('ch4') || chapterId.includes('ch5')) {
       templates.push(
         {
-          q: 'What is the principle of Jaffe’s reaction used for serum creatinine estimation?',
-          options: ['Creatinine reacts with alkaline picrate to produce an orange-red tautomer', 'Enzymatic oxidation with uricase', 'Colorimetric coupling with diazotized sulfanilic acid', 'Urease cleavage to ammonia'],
-          answer: 0,
-          explanation: 'In alkaline medium, creatinine reacts with picric acid to form an orange-red creatinine-picrate complex measured at 505 nm.'
+          q: 'In Ion-Selective Electrode (ISE) analyzers, what specific ionophore antibiotic is incorporated into the polymeric membrane for selective Potassium (K+) detection?',
+          options: [
+            'Valinomycin',
+            'Gramicidin',
+            'Monensin',
+            'Crown ether 12-crown-4'
+          ],
+          explanation: 'Valinomycin has a cyclic cavity with high stereochemical specificity for potassium ions, excluding smaller hydrated sodium ions by a factor of 10,000:1.'
         },
         {
-          q: 'What is the normal serum creatinine reference range in a healthy adult male?',
-          options: ['0.7 to 1.4 mg/dL', '2.5 to 5.0 mg/dL', '10 to 20 mg/dL', '0.1 to 0.4 mg/dL'],
-          answer: 0,
-          explanation: 'Serum creatinine normally ranges from 0.7 to 1.4 mg/dL in males (0.6 to 1.2 mg/dL in females).'
+          q: 'In Arterial Blood Gas (ABG) evaluation, a patient with pH 7.24, pCO2 26 mmHg, and serum HCO3- 11 mEq/L presents with:',
+          options: [
+            'Metabolic acidosis with partial respiratory compensation (hyperventilation)',
+            'Primary respiratory acidosis',
+            'Metabolic alkalosis',
+            'Uncompensated respiratory alkalosis'
+          ],
+          explanation: 'Low pH (<7.35) and low HCO3- (<22 mEq/L) indicate primary metabolic acidosis; low pCO2 (<35 mmHg) reflects compensatory hyperventilation.'
         },
         {
-          q: 'In the Berthelot reaction for urea estimation, urease hydrolyzes urea into ammonia and:',
-          options: ['Carbon dioxide', 'Glucose', 'Uric acid', 'Formic acid'],
-          answer: 0,
-          explanation: 'Urease breaks urea into ammonia and CO2; ammonia reacts with hypochlorite and phenol/salicylate to form indophenol blue.'
+          q: 'In laboratory quality control, which Westgard multirule designates an immediate analytical run rejection due to Random Error?',
+          options: [
+            '1_3s rule (a single control measurement exceeds the Mean ± 3 Standard Deviations)',
+            '2_2s rule',
+            '4_1s rule',
+            '10_x rule'
+          ],
+          explanation: 'The 1_3s rule is violated when one control observation exceeds ±3SD, signaling a high probability of random analytical error that requires run rejection.'
         },
         {
-          q: 'Uric acid is the final metabolic end product of the breakdown of:',
-          options: ['Purines (Adenine and Guanine)', 'Pyrimidines', 'Amino acids', 'Cholesterol'],
-          answer: 0,
-          explanation: 'Uric acid is the end-product of purine nucleotide catabolism; elevation leads to hyperuricemia and gout.'
+          q: 'Which Westgard multirule violation detects Systematic Error (drift or calibration shift) when two consecutive control results exceed the same +2SD or -2SD limit?',
+          options: [
+            '2_2s rule',
+            '1_2s rule',
+            'R_4s rule',
+            '1_3s rule'
+          ],
+          explanation: 'The 2_2s rule is violated when two consecutive runs exceed the same 2SD limit, detecting systematic bias (e.g. reagent deterioration, calibration shift).'
         },
         {
-          q: 'What is the classic chemical preservative used to prevent bacterial decomposition in a 24-hour urine collection for protein/creatinine?',
-          options: ['Thymol or Toluene (or Boric acid)', '10% Formalin', 'Xylene', 'Sulfuric acid 50%'],
-          answer: 0,
-          explanation: 'Thymol or toluene preserves chemical constituents without interfering with routine clinical chemistry tests.'
-        },
-        {
-          q: 'Creatinine clearance test is used clinically to assess which renal parameter?',
-          options: ['Glomerular Filtration Rate (GFR)', 'Tubular reabsorption of sodium', 'Renal blood flow volume', 'Urine concentration capacity'],
-          answer: 0,
-          explanation: 'Because creatinine is freely filtered and minimally secreted by tubules, clearance provides a reliable estimate of GFR.'
-        }
-      );
-    }
-
-    if (chapterId.includes('ch6') || lowerTitle.includes('thyroid') || lowerTitle.includes('tft') || lowerTitle.includes('tsh')) {
-      templates.push(
-        {
-          q: 'Which thyroid hormone is the most active, biologically potent form at the cellular receptor level?',
-          options: ['T3 (Triiodothyronine)', 'T4 (Thyroxine)', 'Reverse T3', 'Thyroglobulin'],
-          answer: 0,
-          explanation: 'Although T4 is secreted in greater quantity, T3 possesses 4–5 times higher biological activity.'
-        },
-        {
-          q: 'In primary hypothyroidism (Hashimoto’s thyroiditis / thyroid failure), what is the typical hormonal pattern?',
-          options: ['Elevated TSH with low Free T4 / T3', 'Low TSH with high Free T4', 'Normal TSH with high T3', 'Both TSH and T4 are elevated'],
-          answer: 0,
-          explanation: 'Loss of thyroid hormone negative feedback on pituitary thyrotrophs leads to marked compensatory elevation of TSH.'
-        },
-        {
-          q: 'Which parameter serves as the single most sensitive initial screening test for primary thyroid disorders?',
-          options: ['Serum TSH (Thyroid Stimulating Hormone)', 'Total T4', 'Serum Calcitonin', 'Thyroid Binding Globulin'],
-          answer: 0,
-          explanation: 'Third-generation chemiluminescent TSH assays detect minute deviations in thyroid homeostasis.'
-        }
-      );
-    }
-
-    if (chapterId.includes('ch8') || lowerTitle.includes('pancreatic') || lowerTitle.includes('amylase') || lowerTitle.includes('lipase')) {
-      templates.push(
-        {
-          q: 'Which serum enzyme is more specific for acute pancreatitis and remains elevated longer in serum?',
-          options: ['Serum Lipase', 'Serum Amylase', 'Serum Alkaline Phosphatase', 'Serum ALT'],
-          answer: 0,
-          explanation: 'Lipase is synthesized almost exclusively by pancreatic acinar cells and remains elevated for 7–14 days.'
-        },
-        {
-          q: 'Serum amylase levels in acute pancreatitis typically begin to rise within how many hours after onset?',
-          options: ['2 to 12 hours', '24 to 48 hours', '5 to 7 days', '3 weeks'],
-          answer: 0,
-          explanation: 'Serum amylase rises quickly within 2–12 hours, peaks at 24 hours, and returns to baseline in 3–5 days.'
-        }
-      );
-    }
-
-    if (chapterId.includes('ch9') || lowerTitle.includes('csf')) {
-      templates.push(
-        {
-          q: 'What is the normal ratio of CSF glucose to plasma glucose in a healthy individual?',
-          options: ['Approximately 60% (0.6) of concurrent blood glucose (45–80 mg/dL)', 'Equal to blood glucose (100%)', '10% of blood glucose', 'Twice the blood glucose'],
-          answer: 0,
-          explanation: 'Normal CSF glucose is roughly 60% of fasting plasma glucose (normally 45–80 mg/dL).'
-        },
-        {
-          q: 'A markedly reduced CSF glucose level (< 40 mg/dL) with high protein and neutrophilic pleocytosis is indicative of:',
-          options: ['Acute bacterial (pyogenic) meningitis', 'Viral aseptic meningitis', 'Normal aging', 'Subdural hematoma'],
-          answer: 0,
-          explanation: 'Bacteria and leukocytes consume glucose in pyogenic meningitis, driving CSF glucose sharply downward.'
-        },
-        {
-          q: 'The Pandy test performed on CSF detects elevated levels of:',
-          options: ['Globulins (proteins)', 'Glucose', 'Chloride', 'Bilirubin'],
-          answer: 0,
-          explanation: 'Pandy reagent (saturated aqueous phenol) forms a cloudy precipitate with abnormally increased CSF globulins.'
-        }
-      );
-    }
-
-    if (chapterId.includes('ch10') || lowerTitle.includes('electrolyte') || lowerTitle.includes('sodium') || lowerTitle.includes('potassium')) {
-      templates.push(
-        {
-          q: 'Which cation is the primary extracellular electrolyte responsible for maintaining plasma osmolality?',
-          options: ['Sodium (Na+)', 'Potassium (K+)', 'Calcium (Ca2+)', 'Magnesium (Mg2+)'],
-          answer: 0,
-          explanation: 'Sodium is the major extracellular cation (normal 135–145 mEq/L) and chief determinant of ECF osmolarity.'
-        },
-        {
-          q: 'What is the normal serum potassium (K+) reference range in adults?',
-          options: ['3.5 to 5.0 mEq/L (mmol/L)', '135 to 145 mEq/L', '98 to 108 mEq/L', '8.5 to 10.5 mEq/L'],
-          answer: 0,
-          explanation: 'Serum potassium is tightly regulated between 3.5 and 5.0 mEq/L; deviations cause life-threatening cardiac arrhythmias.'
-        },
-        {
-          q: 'Hemolysis of a blood sample produces a significant falsely elevated result for which electrolyte?',
-          options: ['Potassium (K+)', 'Sodium (Na+)', 'Chloride (Cl-)', 'Bicarbonate (HCO3-)'],
-          answer: 0,
-          explanation: 'Intracellular potassium concentration inside RBCs is ~140 mEq/L; cell lysis releases high K+ into serum.'
-        },
-        {
-          q: 'What is the standard technology used in modern automated clinical chemistry analyzers to measure electrolytes?',
-          options: ['Ion Selective Electrodes (ISE)', 'Flame photometry', 'Paper chromatography', 'Biuret reaction'],
-          answer: 0,
-          explanation: 'ISE using ion-selective membranes (e.g. valinomycin for K+) is the rapid standard method.'
-        }
-      );
-    }
-
-    if (chapterId.includes('ch11') || chapterId.includes('ch12') || lowerTitle.includes('colorimetry') || lowerTitle.includes('quality control') || lowerTitle.includes('error')) {
-      templates.push(
-        {
-          q: 'Beer’s Law states that the absorbance of monochromatic light by a solution is directly proportional to:',
-          options: ['Concentration of the absorbing substance', 'Path length of the cuvette', 'Color of the filter only', 'Temperature of the room'],
-          answer: 0,
-          explanation: 'Beer’s Law states absorbance is directly proportional to concentration; Lambert’s Law relates to path length.'
-        },
-        {
-          q: 'In colorimetry, what is the mathematical relationship between Optical Density (Absorbance) and Percentage Transmittance (%T)?',
-          options: ['A = 2 - log10 (%T)', 'A = log10 (%T) / 2', 'A = 100 - %T', 'A = %T × 2'],
-          answer: 0,
-          explanation: 'Absorbance is related to transmittance by A = -log(T) = 2 - log10(%T).'
-        },
-        {
-          q: 'A blood sample collected in the wrong anticoagulant tube is classified as which type of laboratory error?',
-          options: ['Pre-analytical error', 'Analytical error', 'Post-analytical error', 'Random instrument error'],
-          answer: 0,
-          explanation: 'Pre-analytical errors occur prior to sample analysis (patient prep, collection tube, labeling, transport).'
-        },
-        {
-          q: 'A control value falling outside the mean ± 3 Standard Deviations (3s rule) indicates:',
-          options: ['Rejection of the analytical run due to random error', 'Acceptable normal variation', 'Perfect precision', 'Post-analytical success'],
-          answer: 0,
-          explanation: 'In Westgard multirule QC, a 1-3s violation indicates an out-of-control run that must be investigated.'
-        },
-        {
-          q: 'On a Levey-Jennings QC chart, a continuous progressive drift of control values in one direction over 6 or more consecutive days is termed:',
-          options: ['Trend (Systematic error)', 'Shift (Sudden systematic error)', 'Normal random error', 'Gaussian peak'],
-          answer: 0,
-          explanation: 'A trend represents gradual loss of calibration, lamp aging, or deteriorating reagents.'
-        },
-        {
-          q: 'A sudden abrupt jump of control values to a new level on one side of the mean for consecutive days is called:',
-          options: ['Shift (Systematic error)', 'Trend', 'Random variation', 'Outlier'],
-          answer: 0,
-          explanation: 'A shift indicates a sudden systematic change, such as new reagent lot, changed standard, or optical misalignment.'
+          q: 'According to the Beer-Lambert Law, if the measured Absorbance (Optical Density) of a colored solution is 1.0, what is the percentage Transmittance (%T)?',
+          options: [
+            '10% Transmittance',
+            '1% Transmittance',
+            '50% Transmittance',
+            '0.1% Transmittance'
+          ],
+          explanation: 'Absorbance = 2 - log(%T). If A = 1.0, then 1.0 = 2 - log(%T) => log(%T) = 1.0 => %T = 10%.'
         }
       );
     }
   }
 }
 
-// Fallback high-yield generator ensuring every specific topic reaches at least 35 questions
+// Comprehensive clinical laboratory questions conforming to 2nd-year DMLT academic syllabus
 function ensureMinimumQuestionCount(topic: Topic, templates: QuestionTemplate[]) {
-  const needed = 35 - templates.length;
-  if (needed <= 0) return;
-
-  const topicKeywords = topic.title.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, '').split(' ').filter(w => w.length > 3);
-  const subjectName = topic.paperId === 'pathology' ? 'Pathology / Immunohematology' : topic.paperId === 'microbiology' ? 'Microbiology' : 'Clinical Biochemistry';
-
-  const conceptualQuestions: QuestionTemplate[] = [
+  const dmlt2ndYearCoreQuestions: QuestionTemplate[] = [
     {
-      q: `Which of the following statements is clinically and practically correct regarding: "${topic.title}"?`,
+      q: 'Which anticoagulant prevents blood coagulation by chelating ionized calcium into an insoluble complex and is optimal for hematological counts?',
       options: [
-        `It requires strict adherence to standardized laboratory protocol and quality control.`,
-        `It is performed without any standard operating procedure.`,
-        `Temperature and reagent concentration have zero impact on results.`,
-        `It is obsolete and banned in all diagnostic clinical laboratories.`
+        'K2-EDTA (Dipotassium ethylenediaminetetraacetic acid)',
+        'Sodium Citrate',
+        'Sodium Heparin',
+        'Sodium Fluoride'
       ],
-      answer: 0,
-      explanation: `In ${subjectName}, accurate diagnostic interpretation depends strictly on validated standard operating procedures, timing, temperature, and quality controls.`
+      explanation: 'EDTA binds divalent calcium ions (Factor IV), preventing thrombin formation and preserving cellular morphology without shrinking red cells.'
     },
     {
-      q: `What is the most critical pre-requisite when investigating: "${topic.title}"?`,
+      q: 'Why is Sodium Fluoride combined with Potassium Oxalate in collection tubes dedicated for plasma glucose estimation?',
       options: [
-        `Proper specimen procurement, patient identification, and correct anticoagulants/reagents`,
-        `Using uncalibrated pipettes and dirty glassware`,
-        `Storing samples at 60°C before testing`,
-        `Discarding control sera`
+        'Fluoride inhibits the enolase enzyme in the glycolytic pathway, preventing in vitro glucose breakdown by RBCs',
+        'Fluoride accelerates insulin activity',
+        'Fluoride dissolves white blood cells',
+        'Fluoride preserves glycated hemoglobin'
       ],
-      answer: 0,
-      explanation: `Pre-analytical precision, specimen integrity, and proper reagent selection are vital for reliable results.`
+      explanation: 'Sodium fluoride inhibits enolase (which requires magnesium), halting glycolysis and stabilizing glucose levels for up to 48 hours.'
     },
     {
-      q: `During laboratory examination of "${topic.title}", what represents an analytical error?`,
+      q: 'What is the precise blood-to-anticoagulant volumetric ratio required in 3.2% (0.109 M) buffered sodium citrate tubes for coagulation assays (PT/APTT)?',
       options: [
-        `Incorrect incubation temperature or expired reagent lot`,
-        `Mislabeled patient tube collected at bedside`,
-        `Delayed report delivery to the hospital ward`,
-        `Incorrect hospital bed number entry in billing`
+        '9 parts whole blood to 1 part sodium citrate (9:1 ratio)',
+        '4 parts whole blood to 1 part citrate',
+        '1 part whole blood to 9 parts citrate',
+        '1 part whole blood to 4 parts citrate'
       ],
-      answer: 0,
-      explanation: `Analytical errors occur directly during test execution, including pipetting inaccuracies, expired reagents, or temperature fluctuations.`
+      explanation: 'Standard coagulation studies require exact 9:1 blood to citrate proportion; underfilling the tube leaves excess citrate that falsely prolongs PT and APTT.'
     },
     {
-      q: `In examination of "${topic.title}", what safety guideline is mandatory for DMLT technicians?`,
+      q: 'What is the physiological reference interval for adult male Hemoglobin in clinical hematology?',
       options: [
-        `Use Personal Protective Equipment (gloves, lab coat, eyewear) and treat all biological specimens as potentially infectious`,
-        `Mouth pipetting of patient serum samples`,
-        `Recapping needles manually with both hands without safety guards`,
-        `Eating and drinking inside the specimen processing area`
+        '13.0 to 17.0 g/dL',
+        '8.0 to 11.0 g/dL',
+        '20.0 to 25.0 g/dL',
+        '5.0 to 8.0 g/dL'
       ],
-      answer: 0,
-      explanation: `Universal biosafety precautions dictate treating all human blood and fluid samples as hazardous infectious materials.`
+      explanation: 'The standard reference interval for healthy adult males is 13.0 to 17.0 g/dL (females: 12.0 to 15.0 g/dL).'
     },
     {
-      q: `What is the standard action when quality control values for "${topic.title}" fall outside established acceptable limits?`,
+      q: 'What is the biological reference interval for adult Total Leukocyte Count (TLC)?',
       options: [
-        `Hold patient results, troubleshoot calibration/reagents, and re-run control samples`,
-        `Report patient results immediately regardless of control error`,
-        `Change the control target value manually to match the run`,
-        `Ignore the control results`
+        '4,000 to 11,000 per cu.mm (cells/µL)',
+        '1,000 to 3,000 per cu.mm',
+        '15,000 to 25,000 per cu.mm',
+        '500 to 1,500 per cu.mm'
       ],
-      answer: 0,
-      explanation: `When internal quality control fails, patient testing must be stopped until the root cause is resolved and verified.`
+      explanation: 'Normal total white blood cell count in peripheral adult blood ranges from 4,000 to 11,000 cells/µL.'
     },
     {
-      q: `Which parameter ensures consistency and repeatability in tests concerning "${topic.title}"?`,
+      q: 'What is the normal reference interval for adult circulating blood Platelets?',
       options: [
-        `Precision (reproducibility)`,
-        `Random variation`,
-        `Subjective guessing`,
-        `Infrequent calibration`
+        '1.5 to 4.5 lakh per cu.mm (150,000 to 450,000/µL)',
+        '20,000 to 50,000/µL',
+        '10 to 15 lakh/µL',
+        '5,000 to 10,000/µL'
       ],
-      answer: 0,
-      explanation: `Precision is the agreement between repeated measurements under specified test conditions.`
+      explanation: 'Normal platelet count in human blood ranges from 1.5 to 4.5 x 10^5/µL (150,000–450,000/cu.mm).'
     },
     {
-      q: `What is the term for closeness of a test result to the true accepted reference value in "${topic.title}"?`,
+      q: 'In differential leukocyte counts, which cell type exhibits bilobed nuclei and coarse, bright orange-red cytoplasmic granules that do not cover the nucleus?',
       options: [
-        `Accuracy`,
-        `Precision`,
-        `Sensitivity`,
-        `Specificity`
+        'Eosinophil',
+        'Basophil',
+        'Neutrophil',
+        'Monocyte'
       ],
-      answer: 0,
-      explanation: `Accuracy describes how closely a measured laboratory value agrees with the certified true value.`
+      explanation: 'Eosinophils contain basic proteins (major basic protein, histaminase) that bind acidic eosin dye, staining bright orange-red.'
     },
     {
-      q: `In viva questions regarding "${topic.title}", what is the primary role of a "negative control"?`,
+      q: 'Which coarse dark blue/black cytoplasmic granules in Basophils contain histamine and heparin and overlie the nucleus?',
       options: [
-        `To rule out non-specific reactions and false positive results`,
-        `To enhance enzyme kinetics`,
-        `To act as a secondary antibody`,
-        `To replace the clinical sample`
+        'Basophilic metachromatic granules',
+        'Toxic granulation',
+        'Döhle bodies',
+        'Auer rods'
       ],
-      answer: 0,
-      explanation: `Negative controls verify that reagents do not yield false positive reactions in the absence of analyte.`
+      explanation: 'Basophil granules contain heparin, histamine, and leukotrienes, staining dark purple-black with methylene blue.'
     },
     {
-      q: `Which factor can directly produce a false negative result during testing for "${topic.title}"?`,
+      q: 'In routine urinalysis, which qualitative screening test detects ketone bodies (acetone and acetoacetic acid)?',
       options: [
-        `Reagent deterioration or prozone phenomenon (antibody excess)`,
-        `Optimal reagent concentration`,
-        `Calibrated pipetting`,
-        `Freshly reconstituted controls`
+        'Rothera’s sodium nitroprusside test',
+        'Hay’s sulfur flower test',
+        'Fouchet’s ferric chloride test',
+        'Ehrlich’s aldehyde test'
       ],
-      answer: 0,
-      explanation: `Expired reagents, incorrect dilutions, or antigen/antibody excess can lead to false negative results.`
+      explanation: 'In alkaline conditions, acetoacetic acid and acetone react with sodium nitroprusside to produce a permanganate purple ring.'
     },
     {
-      q: `What documentation is mandatory under NABL / ISO 15189 standards for "${topic.title}"?`,
+      q: 'Hay’s sulfur flower test detects which abnormal constituent in human urine?',
       options: [
-        `Complete Standard Operating Procedure (SOP) and equipment maintenance logbook`,
-        `Informal unwritten verbal instructions`,
-        `Deleted records after 2 hours`,
-        `Blank worksheets`
+        'Bile salts (sodium taurocholate and glycocholate)',
+        'Bile pigments (bilirubin)',
+        'Urobilinogen',
+        'Bence Jones protein'
       ],
-      answer: 0,
-      explanation: `Accredited clinical laboratories must maintain detailed SOPs, calibration histories, and audit records.`
+      explanation: 'Bile salts lower the surface tension of urine, causing dry sulfur particles dusted on the surface to sink to the bottom.'
     },
     {
-      q: `What is the optimal storage temperature for standard biochemical and serological diagnostic reagents used in "${topic.title}"?`,
+      q: 'Fouchet’s reagent (Trichloroacetic acid + 10% Ferric chloride) detects which urinary component?',
       options: [
-        `2°C to 8°C in a monitored refrigerator`,
-        `Direct sunlight at 40°C`,
-        `-80°C with repeated daily freeze-thaw cycles`,
-        `100°C water bath`
+        'Bile pigments (Bilirubin, oxidized to green biliverdin)',
+        'Porphobilinogen',
+        'Hemoglobin',
+        'Glucose'
       ],
-      answer: 0,
-      explanation: `Diagnostic test kits and enzymatic reagents are typically stabilized for storage between 2°C and 8°C.`
+      explanation: 'Barium chloride precipitates urinary sulfates and bilirubin; Fouchet’s reagent oxidizes bilirubin to blue-green biliverdin.'
     },
     {
-      q: `In viva examination, what is the definition of analytical sensitivity in tests related to "${topic.title}"?`,
+      q: 'Which precipitation/coagulation test is universally performed to confirm Bence Jones protein in multiple myeloma urine?',
       options: [
-        `The ability to detect the smallest amount of analyte in a sample`,
-        `The ability to detect only the target analyte without cross-reaction`,
-        `The speed of the mechanical analyzer`,
-        `The cost of the disposable cuvettes`
+        'Precipitates upon heating between 40°C and 60°C and redissolves near 100°C',
+        'Precipitates only at 100°C and remains coagulated',
+        'Forms a purple ring with sodium nitroprusside',
+        'Turns black in cold water'
       ],
-      answer: 0,
-      explanation: `Analytical sensitivity is the minimum detectable concentration (limit of detection) of an analyte.`
+      explanation: 'Monoclonal free light chains (Bence Jones proteins) characteristically coagulate at 40°C–60°C and clear on boiling (100°C).'
     },
     {
-      q: `What is analytical specificity when evaluating "${topic.title}"?`,
+      q: 'What is the serological basis of the Widal agglutination test for enteric typhoid fever?',
       options: [
-        `The ability to measure only the target substance without interfering cross-reactions`,
-        `The time taken to print the test result`,
-        `The degree of dilution of the sample`,
-        `The number of samples analyzed per hour`
+        'Detects serum agglutinating antibodies against Salmonella enterica serovar Typhi O (somatic) and H (flagellar) antigens',
+        'Detects Shigella dysenteriae enterotoxins',
+        'Measures cross-reactive Proteus OX19 antibodies',
+        'Detects Streptolysin O exotoxin'
       ],
-      answer: 0,
-      explanation: `Specificity refers to freedom from interference or cross-reactivity with other substances in the specimen.`
+      explanation: 'Widal detects antibodies against Salmonella Typhi somatic O and flagellar H antigens; diagnostic titer is typically ≥ 1:160.'
     },
     {
-      q: `When interpreting findings related to "${topic.title}", how is biological variation accounted for?`,
+      q: 'In the non-treponemal VDRL and RPR screening tests for syphilis, what antigen is utilized to detect reagin antibodies?',
       options: [
-        `By referencing age-, sex-, and population-specific reference intervals`,
-        `Using one single universal number for all ages and genders`,
-        `By ignoring clinical history`,
-        `By guessing normal limits`
+        'Cardiolipin-lecithin-cholesterol antigen emulsion',
+        'Live Treponema pallidum organisms',
+        'Sheep erythrocytes sensitized with amboceptor',
+        'Heat-killed Corynebacteria'
       ],
-      answer: 0,
-      explanation: `Reference intervals established for normal healthy populations account for diurnal, age, and sex-specific physiological variations.`
+      explanation: 'Reagin antibody (formed in response to lipoidal material released from damaged host cells) flocculates with cardiolipin-lecithin-cholesterol.'
     },
     {
-      q: `Which disposal method complies with Biomedical Waste (BMW) Management Rules for contaminated plastic tips used in "${topic.title}"?`,
+      q: 'According to Biomedical Waste Management Guidelines, which waste category MUST be discarded exclusively in Yellow bags for high-temperature incineration?',
       options: [
-        `Red color-coded non-chlorinated plastic container for autoclavable contaminated plastics`,
-        `Black domestic garbage bag`,
-        `Discarding in municipal drain directly`,
-        `Burying in hospital open ground`
+        'Human anatomical waste, organ biopsies, placenta, and soiled dressings',
+        'Contaminated plastic tubing, catheters, and disposable syringes without needles',
+        'Metallic scalpels, needles, and sharps',
+        'Broken ampoules and glass slides'
       ],
-      answer: 0,
-      explanation: `Contaminated recyclable plastic waste like syringes, tubing, and tips is segregated into red bins for autoclaving/shredding.`
+      explanation: 'Yellow color-coded non-chlorinated plastic bags are reserved for incinerable human anatomical, animal, and microbiological waste.'
     },
     {
-      q: `Which disposal bin is designated for anatomical and pathology tissue waste related to "${topic.title}"?`,
+      q: 'Contaminated recyclable plastic waste (disposable syringe barrels, IV lines, catheters) must be segregated into which colored container for autoclaving/shredding?',
       options: [
-        `Yellow color-coded bin for incineration`,
-        `Blue bin`,
-        `Black municipal bin`,
-        `White translucent puncture-proof box`
+        'Red container / bin',
+        'Yellow bag',
+        'White puncture-proof container',
+        'Blue cardboard box'
       ],
-      answer: 0,
-      explanation: `Human anatomical waste, histology tissue fragments, and soiled cotton/gauze go into yellow bins for incineration.`
+      explanation: 'Red containers receive recyclable contaminated plastics for autoclaving, chemical treatment, and subsequent shredding.'
     },
     {
-      q: `What is the significance of a "Reagent Blank" in quantitative procedures for "${topic.title}"?`,
+      q: 'Puncture-proof, leak-proof, translucent white containers are designated for which laboratory waste items?',
       options: [
-        `To zero the instrument and subtract background absorbance of reagents`,
-        `To test patient serum without reagent`,
-        `To increase optical turbidity`,
-        `To double the final reading`
+        'Contaminated metal sharps, scalpels, needles, and lancets',
+        'Human organs and amputated limbs',
+        'Used culture plates',
+        'Chemical liquid reagents'
       ],
-      answer: 0,
-      explanation: `Reagent blank sets the spectrophotometer to zero absorbance, compensating for any intrinsic color of reagents.`
+      explanation: 'White translucent puncture-proof containers safely hold used needles, scalpel blades, and sharps to eliminate needle-stick injuries.'
     },
     {
-      q: `What is the role of a "Standard" in colorimetric or quantitative assays for "${topic.title}"?`,
+      q: 'What is the resolution limit of a standard brightfield compound optical microscope using an oil immersion lens and white light?',
       options: [
-        `A solution with an accurately known concentration used to calculate unknown sample concentration`,
-        `A random patient specimen`,
-        `Distilled water without solutes`,
-        `An expired control mixture`
+        'Approximately 0.2 microns (µm)',
+        '2.0 microns (µm)',
+        '0.001 microns (µm)',
+        '10 microns (µm)'
       ],
-      answer: 0,
-      explanation: `A standard has an exact assigned concentration used in: Conc(Test) = [Abs(Test) / Abs(Standard)] × Conc(Standard).`
+      explanation: 'Optical resolution is governed by Abbe’s formula: d = 0.61 lambda / NA. With NA 1.25–1.40 and visible light, the limit is ~0.2 µm.'
     },
     {
-      q: `Why must hemolyzed serum be rejected or treated with extreme caution in tests concerning "${topic.title}"?`,
+      q: 'What is the physiological reference range for normal arterial blood pH?',
       options: [
-        `Hemoglobin causes spectral interference at 400–600 nm and releases intracellular contents`,
-        `It has no effect on optical tests`,
-        `It solidifies the liquid reagent immediately`,
-        `It turns all reagents into gas`
+        '7.35 to 7.45',
+        '7.10 to 7.20',
+        '7.50 to 7.65',
+        '6.80 to 7.00'
       ],
-      answer: 0,
-      explanation: `Free hemoglobin interferes with spectrophotometric readings and releases intracellular enzymes and electrolytes into serum.`
+      explanation: 'Normal arterial blood pH is tightly regulated between 7.35 and 7.45; values <7.35 indicate acidosis, while >7.45 indicate alkalosis.'
     },
     {
-      q: `What is the first step when a technician detects an unexpected panic / critical value in "${topic.title}"?`,
+      q: 'What is the reference range for serum total calcium in healthy adults?',
       options: [
-        `Verify sample identity, re-test the sample, and promptly notify the attending clinician`,
-        `Discard the sample and close the file`,
-        `Wait 48 hours before entering the result`,
-        `Erase the laboratory register entry`
+        '8.5 to 10.5 mg/dL (2.1 to 2.6 mmol/L)',
+        '12.0 to 15.0 mg/dL',
+        '3.0 to 5.0 mg/dL',
+        '18.0 to 22.0 mg/dL'
       ],
-      answer: 0,
-      explanation: `Critical panic values require immediate verification, documentation of telephonic notification, and rapid communication to the physician.`
-    },
-    {
-      q: `Which optical component in an automated chemistry analyzer isolates monochromatic light of a specific wavelength for "${topic.title}"?`,
-      options: [
-        `Diffraction grating or interference filter`,
-        `Tungsten halogen lamp`,
-        `Cuvette wash station`,
-        `Peristaltic pump`
-      ],
-      answer: 0,
-      explanation: 'Monochromators (diffraction gratings or narrow-bandpass interference filters) isolate the desired measurement wavelength.'
-    },
-    {
-      q: `In practical examination of "${topic.title}", what is the purpose of running duplicate tests?`,
-      options: [
-        `To ensure repeatability and minimize random pipetting error`,
-        `To double the patient billing charge`,
-        `To use up leftover reagents quickly`,
-        `To confuse the examiner`
-      ],
-      answer: 0,
-      explanation: `Replicate testing verifies pipetting precision and detects sporadic random errors.`
-    },
-    {
-      q: `How should expired reagents for "${topic.title}" be handled in an accredited laboratory?`,
-      options: [
-        `Discarded and never used for diagnostic testing`,
-        `Kept in use by increasing the incubation time`,
-        `Mixed with new reagent kits`,
-        `Relabeled with a new expiration date`
-      ],
-      answer: 0,
-      explanation: `Expired diagnostic reagents lose analytical activity and must be segregated and discarded.`
-    },
-    {
-      q: `What is the primary objective of External Quality Assessment Schemes (EQAS) in relation to "${topic.title}"?`,
-      options: [
-        `To compare laboratory accuracy against peer laboratories worldwide`,
-        `To test daily technician attendance`,
-        `To replace internal daily QC`,
-        `To eliminate the need for standard operating procedures`
-      ],
-      answer: 0,
-      explanation: `EQAS evaluates long-term testing accuracy and inter-laboratory comparability using blind proficiency samples.`
-    },
-    {
-      q: `What type of water is mandatory for preparing reagents and reconstituting lyophilized controls for "${topic.title}"?`,
-      options: [
-        `CLRW (Clinical Laboratory Reagent Water) / Type I or II deionized water`,
-        `Ordinary tap water`,
-        `Bottled mineral drinking water`,
-        `Boiled river water`
-      ],
-      answer: 0,
-      explanation: `High-purity Clinical Laboratory Reagent Water free of ions, bacteria, and organics is required for sensitive assays.`
-    },
-    {
-      q: `In a viva exam, the examiner asks: "What constitutes a post-analytical error in ${subjectName}?" An example is:`,
-      options: [
-        `Transcription error in typing the final report or misdirection of result`,
-        `Hemolyzed blood collection`,
-        `Air bubbles in spectrophotometer flow-cell`,
-        `Using wrong filter wavelength`
-      ],
-      answer: 0,
-      explanation: `Post-analytical errors encompass transcription slips, incorrect data entry, delayed result communication, or erroneous reference range printing.`
-    },
-    {
-      q: `What is the primary purpose of a centrifuge in preparing specimens for "${topic.title}"?`,
-      options: [
-        `To separate serum or plasma from cellular elements by centrifugal acceleration`,
-        `To heat the blood sample`,
-        `To homogenize red blood cells into liquid`,
-        `To evaporate excess water`
-      ],
-      answer: 0,
-      explanation: `Centrifugation at 2000–3000 rpm for 10 minutes separates cellular components from clear supernatant serum or plasma.`
-    },
-    {
-      q: `Why must centrifuge buckets always be carefully balanced with opposite equal-weight tubes before spinning for "${topic.title}"?`,
-      options: [
-        `To prevent severe vibration, rotor spindle damage, and tube breakage`,
-        `To increase spinning speed by 200%`,
-        `To make the motor silent only`,
-        `To cool down the centrifuge chamber`
-      ],
-      answer: 0,
-      explanation: `Unbalanced loads create heavy centrifugal wobble that damages motor bearings and risks catastrophic breakage of glass tubes.`
-    },
-    {
-      q: `What is the standard action if a glass specimen tube breaks inside a centrifuge while testing "${topic.title}"?`,
-      options: [
-        `Turn off power, allow aerosol to settle for 30 minutes, wear heavy-duty gloves, disinfect bucket with 1% sodium hypochlorite, and remove glass shards with forceps`,
-        `Reach inside immediately with bare hands to collect the broken glass`,
-        `Turn speed to maximum to spin out the glass particles`,
-        `Pour hot water inside and ignore the debris`
-      ],
-      answer: 0,
-      explanation: `Centrifuge breakage generates dangerous infectious aerosols; a 30-minute settling period followed by hypochlorite disinfection is required.`
-    },
-    {
-      q: `What is the shelf life of 1% freshly prepared sodium hypochlorite disinfectant solution used in laboratories?`,
-      options: [
-        `24 hours (prepared fresh daily)`,
-        `1 year`,
-        `6 months`,
-        `Indefinite`
-      ],
-      answer: 0,
-      explanation: `Sodium hypochlorite solutions degrade rapidly in light and air; working dilutions must be made fresh every 24 hours.`
-    },
-    {
-      q: `In diagnostic procedures for "${topic.title}", which parameter measures the proportion of true positives correctly identified by a test?`,
-      options: [
-        `Diagnostic Sensitivity`,
-        `Diagnostic Specificity`,
-        `Negative Predictive Value`,
-        `Standard Deviation`
-      ],
-      answer: 0,
-      explanation: `Diagnostic sensitivity = [True Positives / (True Positives + False Negatives)] × 100.`
-    },
-    {
-      q: `Which parameter measures the proportion of disease-free individuals who correctly test negative in "${topic.title}"?`,
-      options: [
-        `Diagnostic Specificity`,
-        `Diagnostic Sensitivity`,
-        `Positive Predictive Value`,
-        `Coefficient of Variation`
-      ],
-      answer: 0,
-      explanation: `Diagnostic specificity = [True Negatives / (True Negatives + False Positives)] × 100.`
-    },
-    {
-      q: `What is the significance of Coefficient of Variation (CV%) in evaluating methods for "${topic.title}"?`,
-      options: [
-        `It expresses standard deviation as a percentage of the mean to compare precision across assays`,
-        `It measures the total cost of testing`,
-        `It indicates the number of patients seen per month`,
-        `It represents patient survival probability`
-      ],
-      answer: 0,
-      explanation: `CV% = (Standard Deviation / Mean) × 100. Lower CV indicates superior method precision.`
-    },
-    {
-      q: `What is the fundamental conclusion a DMLT technician must understand regarding: "${topic.title}"?`,
-      options: [
-        `Competence requires theoretical mastery, meticulous technique, calibration awareness, and unwavering patient safety`,
-        `Theory is unnecessary if you can guess answers`,
-        `Quality control is purely an administrative formality`,
-        `Results do not matter as long as tests run fast`
-      ],
-      answer: 0,
-      explanation: `Medical laboratory technology demands theoretical depth, rigorous practical accuracy, and commitment to high-quality patient diagnostics.`
+      explanation: 'Total serum calcium ranges from 8.5 to 10.5 mg/dL; ionized physiologically active calcium represents ~50% (4.5–5.3 mg/dL).'
     }
   ];
 
-  for (const q of conceptualQuestions) {
-    if (templates.length >= 40) break;
+  // Append questions into templates until pool size reaches at least 50
+  for (const q of dmlt2ndYearCoreQuestions) {
+    if (templates.length >= 60) break;
     templates.push(q);
   }
 }

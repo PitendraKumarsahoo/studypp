@@ -74,3 +74,27 @@ export interface TestAttemptResult {
   chapterId: string;
   paperId: PaperId;
 }
+
+export interface Flashcard {
+  id: string;
+  paperId: PaperId;
+  chapterId: string;
+  chapterNumber: number;
+  chapterTitle: string;
+  term: string;
+  definition: string;
+  category: 'Key Definition' | 'Clinical Significance' | 'Reagent & Method' | 'Normal Value' | 'Microbiology' | 'Hematology';
+  highYieldFact?: string;
+  exampleOrFormula?: string;
+}
+
+export type FlashcardMasteryStatus = 'learning' | 'mastered';
+
+export interface FlashcardMasteryMap {
+  [cardId: string]: {
+    status: FlashcardMasteryStatus;
+    lastReviewedAt: string;
+    reviewCount: number;
+  };
+}
+

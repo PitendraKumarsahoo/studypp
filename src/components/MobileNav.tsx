@@ -7,7 +7,8 @@ import {
   CheckSquare,
   BarChart3,
   RotateCcw,
-  Sparkles
+  Sparkles,
+  Layers
 } from 'lucide-react';
 import { ActiveView } from './Sidebar';
 import { PaperId } from '../types';
@@ -67,6 +68,15 @@ export const MobileNav: React.FC<MobileNavProps> = ({
           Dashboard
         </button>
         <button
+          onClick={() => onNavigate('flashcards')}
+          className={`px-3 py-1 rounded-full whitespace-nowrap font-medium transition-colors flex items-center gap-1 ${
+            activeView === 'flashcards' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+          }`}
+        >
+          <Layers className="w-3 h-3" />
+          <span>Flashcards</span>
+        </button>
+        <button
           onClick={() => onNavigate('paper', 'pathology')}
           className={`px-3 py-1 rounded-full whitespace-nowrap font-medium transition-colors ${
             (activeView === 'paper' || activeView === 'chapter') && selectedPaperId === 'pathology'
@@ -111,39 +121,13 @@ export const MobileNav: React.FC<MobileNavProps> = ({
         </button>
 
         <button
-          onClick={() => onNavigate('paper', 'pathology')}
+          onClick={() => onNavigate('flashcards')}
           className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg text-[10px] font-medium transition-colors ${
-            selectedPaperId === 'pathology' && (activeView === 'paper' || activeView === 'chapter')
-              ? 'text-rose-600 font-bold'
-              : 'text-slate-600'
+            activeView === 'flashcards' ? 'text-indigo-600 font-bold' : 'text-slate-600'
           }`}
         >
-          <BookOpen className="w-5 h-5" />
-          <span>Pathology</span>
-        </button>
-
-        <button
-          onClick={() => onNavigate('paper', 'microbiology')}
-          className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg text-[10px] font-medium transition-colors ${
-            selectedPaperId === 'microbiology' && (activeView === 'paper' || activeView === 'chapter')
-              ? 'text-emerald-600 font-bold'
-              : 'text-slate-600'
-          }`}
-        >
-          <Microscope className="w-5 h-5" />
-          <span>Microbiology</span>
-        </button>
-
-        <button
-          onClick={() => onNavigate('paper', 'biochemistry')}
-          className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg text-[10px] font-medium transition-colors ${
-            selectedPaperId === 'biochemistry' && (activeView === 'paper' || activeView === 'chapter')
-              ? 'text-amber-600 font-bold'
-              : 'text-slate-600'
-          }`}
-        >
-          <FlaskConical className="w-5 h-5" />
-          <span>Biochemistry</span>
+          <Layers className="w-5 h-5" />
+          <span>Cards</span>
         </button>
 
         <button

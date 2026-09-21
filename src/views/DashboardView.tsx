@@ -7,24 +7,30 @@ import {
   Sparkles,
   ArrowRight,
   ShieldCheck,
-  CheckSquare
+  CheckSquare,
+  Layers
 } from 'lucide-react';
 import { DMLT_PAPERS } from '../data/dmltData';
 import { DMLTPaper, PaperId } from '../types';
 import { PaperCard } from '../components/PaperCard';
 import { DashboardCharts } from '../components/DashboardCharts';
+import { DailyStudyGoalCard } from '../components/DailyStudyGoalCard';
 import { calculatePaperProgress, calculateOverallProgress, getRecentCompletions } from '../utils/progress';
 
 interface DashboardViewProps {
   onOpenPaper: (paper: DMLTPaper) => void;
   onOpenChecklist: () => void;
   onOpenProgress: () => void;
+  onOpenFlashcards?: () => void;
+  onStartTest?: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenPaper,
   onOpenChecklist,
-  onOpenProgress
+  onOpenProgress,
+  onOpenFlashcards,
+  onStartTest
 }) => {
   const overall = calculateOverallProgress();
   const pathologyStats = calculatePaperProgress('pathology');
@@ -66,12 +72,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <CheckSquare className="w-4 h-4 text-indigo-300" />
               <span>Master Revision Checklist</span>
             </button>
+
+            {onOpenFlashcards && (
+              <button
+                onClick={onOpenFlashcards}
+                className="px-4 py-2.5 rounded-xl bg-indigo-500/30 hover:bg-indigo-500/40 text-indigo-200 font-semibold text-xs border border-indigo-400/30 transition-colors flex items-center gap-2"
+              >
+                <Layers className="w-4 h-4 text-indigo-300" />
+                <span>Active Recall Flashcards</span>
+              </button>
+            )}
           </div>
         </div>
 
         {/* Decorative background glow */}
         <div className="absolute -right-16 -bottom-16 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
       </div>
+
+      {/* Daily Study Goal & Progress Ring */}
+      <DailyStudyGoalCard onStartTest={onStartTest} />
 
       {/* 4 Essential Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">

@@ -9,7 +9,9 @@ import {
   RotateCcw,
   BookOpen,
   Award,
-  Sparkles
+  Sparkles,
+  Lightbulb,
+  HelpCircle
 } from 'lucide-react';
 import { MCQQuestion, Topic, PaperId } from '../types';
 import { getQuestionsForTopic } from '../data/mcqGenerator';
@@ -225,32 +227,97 @@ export const MCQModal: React.FC<MCQModalProps> = ({
               <div className="space-y-2.5 pt-1">
                 {questions[currentIndex].options.map((option, optIdx) => {
                   const isSelected = userAnswers[currentIndex] === optIdx;
+                  const hasAnswered = userAnswers[currentIndex] !== null;
+                  const isCorrectAnswer = optIdx === questions[currentIndex].correctAnswer;
+                  const isUserCorrect = isSelected && isCorrectAnswer;
+                  const isUserWrong = isSelected && !isCorrectAnswer;
                   const letter = String.fromCharCode(65 + optIdx); // A, B, C, D
+
+                  let buttonStyle = 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800';
+                  let badgeStyle = 'bg-slate-100 text-slate-600 border border-slate-200';
+
+                  if (hasAnswered) {
+                    if (isUserCorrect) {
+                      buttonStyle = 'border-emerald-500 bg-emerald-50/80 text-emerald-950 font-semibold ring-2 ring-emerald-200';
+                      badgeStyle = 'bg-emerald-600 text-white font-bold';
+                    } else if (isUserWrong) {
+                      buttonStyle = 'border-rose-500 bg-rose-50/80 text-rose-950 font-semibold ring-2 ring-rose-200';
+                      badgeStyle = 'bg-rose-600 text-white font-bold';
+                    } else if (isCorrectAnswer) {
+                      buttonStyle = 'border-emerald-400 bg-emerald-50/50 text-emerald-900 border-dashed font-medium';
+                      badgeStyle = 'bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold';
+                    } else {
+                      buttonStyle = 'border-slate-200 bg-slate-50/50 text-slate-400 opacity-60';
+                      badgeStyle = 'bg-slate-100 text-slate-400 border border-slate-200';
+                    }
+                  }
 
                   return (
                     <button
                       key={optIdx}
                       onClick={() => handleSelectOption(optIdx)}
-                      className={`w-full text-left p-3.5 rounded-xl border transition-all flex items-start gap-3 text-sm cursor-pointer ${
-                        isSelected
-                          ? 'border-indigo-600 bg-indigo-50/80 text-indigo-950 font-medium ring-2 ring-indigo-200'
-                          : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800'
-                      }`}
+                      className={`w-full text-left p-3.5 rounded-xl border transition-all flex items-start gap-3 text-sm cursor-pointer ${buttonStyle}`}
                     >
                       <span
-                        className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 transition-colors ${
-                          isSelected
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-slate-100 text-slate-600 border border-slate-200'
-                        }`}
+                        className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 transition-colors ${badgeStyle}`}
                       >
                         {letter}
                       </span>
                       <span className="flex-1 pt-0.5 leading-relaxed">{option}</span>
+
+                      {/* Real-time feedback status badge */}
+                      {hasAnswered && isUserCorrect && (
+                        <span className="shrink-0 text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Correct</span>
+                        </span>
+                      )}
+                      {hasAnswered && isUserWrong && (
+                        <span className="shrink-0 text-xs font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-md flex items-center gap-1">
+                          <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                          <span>Incorrect</span>
+                        </span>
+                      )}
+                      {hasAnswered && !isSelected && isCorrectAnswer && (
+                        <span className="shrink-0 text-xs font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-md flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Correct Option</span>
+                        </span>
+                      )}
                     </button>
                   );
                 })}
               </div>
+
+              {/* Immediate Educational Explanation Card */}
+              {userAnswers[currentIndex] !== null && (
+                <div
+                  className={`p-4 rounded-xl border text-xs space-y-2 animate-fadeIn transition-all ${
+                    userAnswers[currentIndex] === questions[currentIndex].correctAnswer
+                      ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950'
+                      : 'bg-amber-50/80 border-amber-300 text-amber-950'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 font-bold text-xs sm:text-sm">
+                      <Lightbulb className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>
+                        {userAnswers[currentIndex] === questions[currentIndex].correctAnswer
+                          ? 'Educational Explanation (Correct Choice):'
+                          : `Educational Explanation (Correct Option: ${String.fromCharCode(
+                              65 + questions[currentIndex].correctAnswer
+                            )}):`}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                      2nd Year DMLT Concept
+                    </span>
+                  </div>
+                  <p className="text-xs leading-relaxed text-slate-800 bg-white/90 p-3 rounded-lg border border-slate-200">
+                    {questions[currentIndex].explanation}
+                  </p>
+                </div>
+              )}
 
               {/* Unanswered warning modal strip */}
               {showUnansweredConfirm && (
@@ -278,23 +345,25 @@ export const MCQModal: React.FC<MCQModalProps> = ({
                 </div>
               )}
 
-              {/* Bottom Nav Controls */}
-              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+              {/* Bottom Nav Controls with ALWAYS-VISIBLE Submit Button */}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100 gap-2 flex-wrap sm:flex-nowrap">
+                {/* Left: Previous Button */}
                 <button
                   onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
                   disabled={currentIndex === 0}
-                  className="px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1.5 transition-colors"
+                  className="px-3.5 py-2 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1.5 transition-colors shrink-0"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Previous</span>
                 </button>
 
-                <div className="hidden sm:flex gap-1 overflow-x-auto max-w-[200px] py-1">
+                {/* Center: Scrollable Quick Jump Pills */}
+                <div className="hidden sm:flex gap-1 overflow-x-auto max-w-[200px] md:max-w-[260px] py-1 px-1">
                   {questions.map((_, i) => (
                     <button
                       key={i}
                       onClick={() => setCurrentIndex(i)}
-                      className={`w-6 h-6 rounded-md text-[10px] font-semibold transition-colors ${
+                      className={`w-6 h-6 rounded-md text-[10px] font-semibold shrink-0 transition-colors ${
                         currentIndex === i
                           ? 'bg-indigo-600 text-white'
                           : userAnswers[i] !== null
@@ -308,24 +377,29 @@ export const MCQModal: React.FC<MCQModalProps> = ({
                   ))}
                 </div>
 
-                {currentIndex < questions.length - 1 ? (
+                {/* Right Group: Next and ALWAYS-VISIBLE Submit Test Button */}
+                <div className="flex items-center gap-2 ml-auto">
+                  {currentIndex < questions.length - 1 && (
+                    <button
+                      onClick={() => setCurrentIndex((prev) => Math.min(questions.length - 1, prev + 1))}
+                      className="px-3.5 py-2 text-xs font-bold rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center gap-1.5 transition-colors shadow-2xs"
+                    >
+                      <span>Next</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+
+                  {/* Always show submit button on all questions */}
                   <button
-                    onClick={() => setCurrentIndex((prev) => Math.min(questions.length - 1, prev + 1))}
-                    className="px-4 py-2 text-xs font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 flex items-center gap-1.5 transition-colors shadow-xs"
-                  >
-                    <span>Next</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                ) : (
-                  <button
-                    id="btn-submit-mcq-test"
+                    id="btn-always-submit-mcq"
                     onClick={handleSubmitTest}
-                    className="px-5 py-2 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-1.5 transition-colors shadow-xs"
+                    className="px-4 py-2 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 transition-colors shadow-xs"
+                    title="Submit test at any time"
                   >
-                    <span>Submit Test</span>
+                    <span>Submit Test ({answeredCount}/30)</span>
                     <CheckCircle2 className="w-3.5 h-3.5" />
                   </button>
-                )}
+                </div>
               </div>
             </div>
           )}

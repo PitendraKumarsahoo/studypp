@@ -7,16 +7,19 @@ import { PaperView } from './views/PaperView';
 import { ChapterView } from './views/ChapterView';
 import { MasterChecklistView } from './views/MasterChecklistView';
 import { ProgressView } from './views/ProgressView';
+import { FlashcardsView } from './views/FlashcardsView';
 import { MCQModal } from './components/MCQModal';
 import { ResetConfirmModal } from './components/ResetConfirmModal';
 import { DMLT_PAPERS } from './data/dmltData';
 import { DMLTPaper, Chapter, Topic, PaperId } from './types';
-import { calculateOverallProgress, resetAllProgress } from './utils/progress';
+import { calculateOverallProgress, resetAllProgress, getFirstPendingTopic } from './utils/progress';
 
 export function App() {
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
   const [selectedPaper, setSelectedPaper] = useState<DMLTPaper | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
+  const [flashcardsPaperId, setFlashcardsPaperId] = useState<PaperId | 'all'>('all');
+  const [flashcardsChapterId, setFlashcardsChapterId] = useState<string | 'all'>('all');
 
   // Active MCQ Test
   const [testTopic, setTestTopic] = useState<Topic | null>(null);
@@ -57,10 +60,20 @@ export function App() {
         return;
       }
     }
+    if (view === 'flashcards') {
+      if (paperId) {
+        setFlashcardsPaperId(paperId);
+      } else {
+        setFlashcardsPaperId('all');
+      }
+      setFlashcardsChapterId('all');
+    }
     setActiveView(view);
-    if (view === 'dashboard' || view === 'master_checklist' || view === 'progress') {
-      setSelectedPaper(null);
-      setSelectedChapter(null);
+    if (view === 'dashboard' || view === 'master_checklist' || view === 'progress' || view === 'flashcards') {
+      if (view !== 'flashcards') {
+        setSelectedPaper(null);
+        setSelectedChapter(null);
+      }
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -75,6 +88,13 @@ export function App() {
   const handleOpenChapter = (chapter: Chapter) => {
     setSelectedChapter(chapter);
     setActiveView('chapter');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleOpenFlashcards = (paperId: PaperId | 'all' = 'all', chapterId: string | 'all' = 'all') => {
+    setFlashcardsPaperId(paperId);
+    setFlashcardsChapterId(chapterId);
+    setActiveView('flashcards');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -105,6 +125,17 @@ export function App() {
     setSelectedChapter(chapter);
     setActiveView('chapter');
     handleStartTest(topic);
+  };
+
+  const handleStartDailyGoalTest = () => {
+    const pending = getFirstPendingTopic();
+    if (pending) {
+      setSelectedPaper(pending.paper);
+      setSelectedChapter(pending.chapter);
+      handleStartTest(pending.topic);
+    } else {
+      handleOpenPaper(DMLT_PAPERS[0]);
+    }
   };
 
   const handleConfirmReset = () => {
@@ -150,6 +181,8 @@ export function App() {
               onOpenPaper={handleOpenPaper}
               onOpenChecklist={() => handleNavigate('master_checklist')}
               onOpenProgress={() => handleNavigate('progress')}
+              onOpenFlashcards={() => handleOpenFlashcards('all')}
+              onStartTest={handleStartDailyGoalTest}
             />
           )}
 
@@ -158,6 +191,7 @@ export function App() {
               paper={selectedPaper}
               onBack={() => handleNavigate('dashboard')}
               onOpenChapter={handleOpenChapter}
+              onOpenFlashcards={(paperId) => handleOpenFlashcards(paperId)}
             />
           )}
 
@@ -170,6 +204,27 @@ export function App() {
                 setActiveView('paper');
               }}
               onStartTest={handleStartTest}
+              onOpenFlashcards={(chapterId) => handleOpenFlashcards(selectedPaper.id, chapterId)}
+            />
+          )}
+
+          {activeView === 'flashcards' && (
+            <FlashcardsView
+              initialPaperId={flashcardsPaperId}
+              initialChapterId={flashcardsChapterId}
+              onNavigateToPaper={(pId) => handleNavigate('paper', pId)}
+              onNavigateToChapter={(cId) => {
+                for (const p of DMLT_PAPERS) {
+                  const ch = p.chapters.find((c) => c.id === cId);
+                  if (ch) {
+                    setSelectedPaper(p);
+                    setSelectedChapter(ch);
+                    setActiveView('chapter');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    break;
+                  }
+                }
+              }}
             />
           )}
 

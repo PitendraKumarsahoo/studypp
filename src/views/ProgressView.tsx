@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   CheckCircle2,
   XCircle,
@@ -12,12 +12,25 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { calculateOverallProgress, calculatePaperProgress, getRecentCompletions } from '../utils/progress';
+import { PerformanceTrendChart } from '../components/PerformanceTrendChart';
 
 interface ProgressViewProps {
   onOpenResetModal: () => void;
 }
 
 export const ProgressView: React.FC<ProgressViewProps> = ({ onOpenResetModal }) => {
+  const [version, setVersion] = useState(0);
+  const reloadData = useCallback(() => {
+    setVersion((v) => v + 1);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('dmlt-progress-updated', reloadData);
+    return () => {
+      window.removeEventListener('dmlt-progress-updated', reloadData);
+    };
+  }, [reloadData]);
+
   const overall = calculateOverallProgress();
   const pathologyStats = calculatePaperProgress('pathology');
   const microStats = calculatePaperProgress('microbiology');
@@ -99,6 +112,9 @@ export const ProgressView: React.FC<ProgressViewProps> = ({ onOpenResetModal }) 
           </span>
         </div>
       </div>
+
+      {/* Visual Analytics: Performance Trends over time */}
+      <PerformanceTrendChart recentTests={recentTests} onDataChanged={reloadData} />
 
       {/* Subject-wise Breakdown Cards */}
       <div className="space-y-3">
